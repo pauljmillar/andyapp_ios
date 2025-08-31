@@ -16,73 +16,21 @@ struct SurveyView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Search and filter bar
-            VStack(spacing: AppSpacing.md) {
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(AppColors.textSecondary)
-                    
-                    TextField("Search surveys...", text: $searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
-                    
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            searchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                    }
-                }
-                .padding(AppSpacing.md)
-                .background(AppColors.cardBackground)
-                .cornerRadius(AppCornerRadius.medium)
-                .shadow(
-                    color: AppShadows.small.color,
-                    radius: AppShadows.small.radius,
-                    x: AppShadows.small.x,
-                    y: AppShadows.small.y
-                )
+            // Show completed toggle
+            HStack {
+                Toggle("Show Completed", isOn: $showingCompleted)
+                    .font(AppTypography.body)
+                    .foregroundColor(AppColors.textPrimary)
                 
-                // Category filters
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppSpacing.sm) {
-                        FilterPill(
-                            title: "All",
-                            isSelected: selectedCategory == nil
-                        ) {
-                            selectedCategory = nil
-                        }
-                        
-                        ForEach(SurveyCategory.allCases, id: \.self) { category in
-                            FilterPill(
-                                title: category.displayName,
-                                isSelected: selectedCategory == category
-                            ) {
-                                selectedCategory = category
-                            }
-                        }
-                    }
-                    .padding(.horizontal, AppSpacing.lg)
-                }
+                Spacer()
                 
-                // Show completed toggle
-                HStack {
-                    Toggle("Show Completed", isOn: $showingCompleted)
-                        .font(AppTypography.body)
-                        .foregroundColor(AppColors.textPrimary)
-                    
-                    Spacer()
-                    
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
-                            .scaleEffect(0.8)
-                    }
+                if viewModel.isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
+                        .scaleEffect(0.8)
                 }
-                .padding(.horizontal, AppSpacing.lg)
             }
+            .padding(.horizontal, AppSpacing.lg)
             .padding(.vertical, AppSpacing.md)
             .background(AppColors.background)
             

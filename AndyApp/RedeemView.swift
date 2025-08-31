@@ -25,60 +25,7 @@ struct RedeemView: View {
             .padding(.horizontal, AppSpacing.lg)
             .padding(.vertical, AppSpacing.md)
             
-            // Search and filter bar
-            VStack(spacing: AppSpacing.md) {
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(AppColors.textSecondary)
-                    
-                    TextField("Search rewards...", text: $searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
-                    
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            searchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                    }
-                }
-                .padding(AppSpacing.md)
-                .background(AppColors.cardBackground)
-                .cornerRadius(AppCornerRadius.medium)
-                .shadow(
-                    color: AppShadows.small.color,
-                    radius: AppShadows.small.radius,
-                    x: AppShadows.small.x,
-                    y: AppShadows.small.y
-                )
-                
-                // Category filters
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppSpacing.sm) {
-                        FilterPill(
-                            title: "All",
-                            isSelected: selectedCategory == nil
-                        ) {
-                            selectedCategory = nil
-                        }
-                        
-                        ForEach(RedemptionOption.RedemptionCategory.allCases, id: \.self) { category in
-                            FilterPill(
-                                title: category.displayName,
-                                isSelected: selectedCategory == category
-                            ) {
-                                selectedCategory = category
-                            }
-                        }
-                    }
-                    .padding(.horizontal, AppSpacing.lg)
-                }
-            }
-            .padding(.horizontal, AppSpacing.lg)
-            .padding(.bottom, AppSpacing.md)
-            .background(AppColors.background)
+
             
             // Redemption options list
             if viewModel.isLoading && viewModel.options.isEmpty {

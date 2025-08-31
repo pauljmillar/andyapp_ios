@@ -126,6 +126,9 @@ struct ProfileMenuView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Profile header
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
+                        // Add top padding to avoid system status bar
+                        Spacer()
+                            .frame(height: 50)
                         HStack {
                             // Profile image
                             Circle()
