@@ -10,20 +10,21 @@ import SwiftUI
 // MARK: - Color Palette
 struct AppColors {
     // Primary Colors
-    static let primaryGreen = Color(hex: "#4CAF50") // Material Design Green 500
-    static let darkGreen = Color(hex: "#388E3C")    // Material Design Green 700
-    static let lightGreen = Color(hex: "#81C784")   // Material Design Green 300
+    static let primaryGreen = Color(hex: "#1ED760") // Spotify Green
+    static let darkGreen = Color(hex: "#1DB954")    // Darker Spotify Green
+    static let lightGreen = Color(hex: "#1ED760")   // Spotify Green
+    static let profileBlue = Color(hex: "#509BFS")  // Profile Circle Blue
     
     // Background Colors
-    static let background = Color(hex: "#F5F5F5")   // Light Gray
-    static let cardBackground = Color.white
+    static let background = Color.black              // Dark mode background
+    static let cardBackground = Color(hex: "#1C1C1E") // Dark card background
     
     // Text Colors
-    static let textPrimary = Color(hex: "#212121")  // Dark Gray
-    static let textSecondary = Color(hex: "#757575") // Medium Gray
+    static let textPrimary = Color.white             // White text for dark mode
+    static let textSecondary = Color(hex: "#8E8E93") // Light gray text for dark mode
     
     // Divider Colors
-    static let divider = Color(hex: "#E0E0E0")      // Light Gray
+    static let divider = Color(hex: "#38383A")      // Dark divider for dark mode
     
     // Status Colors
     static let success = Color(hex: "#4CAF50")

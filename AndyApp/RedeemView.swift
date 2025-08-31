@@ -15,123 +15,119 @@ struct RedeemView: View {
     @State private var searchText = ""
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Points display
-                PointsCard(
-                    points: authManager.currentUser?.points ?? 0,
-                    title: "Available Points",
-                    subtitle: "Redeem for rewards"
-                )
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.md)
-                
-                // Search and filter bar
-                VStack(spacing: AppSpacing.md) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(AppColors.textSecondary)
-                        
-                        TextField("Search rewards...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                        
-                        if !searchText.isEmpty {
-                            Button(action: {
-                                searchText = ""
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                        }
-                    }
-                    .padding(AppSpacing.md)
-                    .background(AppColors.cardBackground)
-                    .cornerRadius(AppCornerRadius.medium)
-                    .shadow(
-                        color: AppShadows.small.color,
-                        radius: AppShadows.small.radius,
-                        x: AppShadows.small.x,
-                        y: AppShadows.small.y
-                    )
+        VStack(spacing: 0) {
+            // Points display
+            PointsCard(
+                points: authManager.currentUser?.points ?? 0,
+                title: "Available Points",
+                subtitle: "Redeem for rewards"
+            )
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.md)
+            
+            // Search and filter bar
+            VStack(spacing: AppSpacing.md) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(AppColors.textSecondary)
                     
-                    // Category filters
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: AppSpacing.sm) {
-                            FilterPill(
-                                title: "All",
-                                isSelected: selectedCategory == nil
-                            ) {
-                                selectedCategory = nil
-                            }
-                            
-                            ForEach(RedemptionOption.RedemptionCategory.allCases, id: \.self) { category in
-                                FilterPill(
-                                    title: category.displayName,
-                                    isSelected: selectedCategory == category
-                                ) {
-                                    selectedCategory = category
-                                }
-                            }
+                    TextField("Search rewards...", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(AppColors.textSecondary)
                         }
-                        .padding(.horizontal, AppSpacing.lg)
                     }
                 }
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.bottom, AppSpacing.md)
-                .background(AppColors.background)
+                .padding(AppSpacing.md)
+                .background(AppColors.cardBackground)
+                .cornerRadius(AppCornerRadius.medium)
+                .shadow(
+                    color: AppShadows.small.color,
+                    radius: AppShadows.small.radius,
+                    x: AppShadows.small.x,
+                    y: AppShadows.small.y
+                )
                 
-                // Redemption options list
-                if viewModel.isLoading && viewModel.options.isEmpty {
-                    LoadingView(message: "Loading rewards...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = viewModel.error {
-                    ErrorView(message: error) {
+                // Category filters
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AppSpacing.sm) {
+                        FilterPill(
+                            title: "All",
+                            isSelected: selectedCategory == nil
+                        ) {
+                            selectedCategory = nil
+                        }
+                        
+                        ForEach(RedemptionOption.RedemptionCategory.allCases, id: \.self) { category in
+                            FilterPill(
+                                title: category.displayName,
+                                isSelected: selectedCategory == category
+                            ) {
+                                selectedCategory = category
+                            }
+                        }
+                    }
+                    .padding(.horizontal, AppSpacing.lg)
+                }
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.bottom, AppSpacing.md)
+            .background(AppColors.background)
+            
+            // Redemption options list
+            if viewModel.isLoading && viewModel.options.isEmpty {
+                LoadingView(message: "Loading rewards...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = viewModel.error {
+                ErrorView(message: error) {
+                    viewModel.loadOptions()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredOptions.isEmpty {
+                EmptyStateView(
+                    icon: "gift",
+                    title: searchText.isEmpty ? "No Rewards Available" : "No Results Found",
+                    message: searchText.isEmpty ? 
+                        "Check back later for new rewards to redeem." :
+                        "Try adjusting your search or filters.",
+                    actionTitle: "Refresh",
+                    action: {
                         viewModel.loadOptions()
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if filteredOptions.isEmpty {
-                    EmptyStateView(
-                        icon: "gift",
-                        title: searchText.isEmpty ? "No Rewards Available" : "No Results Found",
-                        message: searchText.isEmpty ? 
-                            "Check back later for new rewards to redeem." :
-                            "Try adjusting your search or filters.",
-                        actionTitle: "Refresh",
-                        action: {
-                            viewModel.loadOptions()
-                        }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: AppSpacing.md) {
-                            ForEach(filteredOptions) { option in
-                                RedemptionOptionCard(
-                                    option: option,
-                                    userPoints: authManager.currentUser?.points ?? 0
-                                ) {
-                                    viewModel.selectOption(option)
-                                }
-                                .padding(.horizontal, AppSpacing.lg)
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: AppSpacing.md) {
+                        ForEach(filteredOptions) { option in
+                            RedemptionOptionCard(
+                                option: option,
+                                userPoints: authManager.currentUser?.points ?? 0
+                            ) {
+                                viewModel.selectOption(option)
                             }
+                            .padding(.horizontal, AppSpacing.lg)
                         }
-                        .padding(.vertical, AppSpacing.md)
                     }
+                    .padding(.vertical, AppSpacing.md)
                 }
             }
-            .background(AppColors.background)
-            .navigationTitle("Redeem")
-            .navigationBarTitleDisplayMode(.large)
-            .onAppear {
-                viewModel.loadOptions()
-            }
-            .onChange(of: selectedCategory) { _ in
-                viewModel.loadOptions(category: selectedCategory)
-            }
-            .refreshable {
-                viewModel.loadOptions(category: selectedCategory)
-            }
+        }
+        .background(AppColors.background)
+        .onAppear {
+            viewModel.loadOptions()
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            viewModel.loadOptions(category: selectedCategory)
+        }
+        .refreshable {
+            viewModel.loadOptions(category: selectedCategory)
         }
         .sheet(item: $viewModel.selectedOption) { option in
             RedemptionDetailView(option: option)
@@ -191,6 +187,65 @@ class RedeemViewModel: ObservableObject {
         isLoading = true
         error = nil
         
+        // TEMPORARY: Use mock data for development
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.isLoading = false
+            self.options = [
+                RedemptionOption(
+                    id: "1",
+                    title: "Amazon Gift Card",
+                    description: "$10 Amazon gift card for online shopping",
+                    pointsCost: 1000,
+                    imageUrl: nil,
+                    isAvailable: true,
+                    category: .giftCards,
+                    stock: 50
+                ),
+                RedemptionOption(
+                    id: "2",
+                    title: "Starbucks Gift Card",
+                    description: "$5 Starbucks gift card for coffee and treats",
+                    pointsCost: 500,
+                    imageUrl: nil,
+                    isAvailable: true,
+                    category: .giftCards,
+                    stock: 25
+                ),
+                RedemptionOption(
+                    id: "3",
+                    title: "Survey Rewards T-Shirt",
+                    description: "Comfortable cotton t-shirt with our logo",
+                    pointsCost: 750,
+                    imageUrl: nil,
+                    isAvailable: true,
+                    category: .merchandise,
+                    stock: 10
+                ),
+                RedemptionOption(
+                    id: "4",
+                    title: "Donate to Charity",
+                    description: "Donate your points to support education initiatives",
+                    pointsCost: 250,
+                    imageUrl: nil,
+                    isAvailable: true,
+                    category: .donations,
+                    stock: nil
+                ),
+                RedemptionOption(
+                    id: "5",
+                    title: "Premium Coffee Mug",
+                    description: "High-quality ceramic mug with survey rewards branding",
+                    pointsCost: 600,
+                    imageUrl: nil,
+                    isAvailable: false,
+                    category: .merchandise,
+                    stock: 0
+                )
+            ]
+        }
+        
+        // Uncomment for real API calls:
+        /*
         apiService.getRedemptionOptions(category: category)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -205,6 +260,7 @@ class RedeemViewModel: ObservableObject {
                 }
             )
             .store(in: &cancellables)
+        */
     }
     
     func selectOption(_ option: RedemptionOption) {

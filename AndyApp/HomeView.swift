@@ -81,12 +81,6 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, AppSpacing.lg)
                     
-                    // Category filters
-                    FilterPillsView(
-                        categories: SurveyCategory.allCases.map { $0.displayName },
-                        selectedCategory: $selectedCategory
-                    )
-                    
                     // Survey cards
                     if viewModel.isLoading {
                         LoadingView(message: "Loading surveys...")
@@ -186,8 +180,6 @@ struct HomeView: View {
             .padding(.vertical, AppSpacing.lg)
         }
         .background(AppColors.background)
-        .navigationTitle("Home")
-        .navigationBarTitleDisplayMode(.large)
         .onAppear {
             viewModel.loadSurveys()
             viewModel.loadActivity()
@@ -226,6 +218,61 @@ class HomeViewModel: ObservableObject {
         isLoading = true
         error = nil
         
+        // TEMPORARY: Use mock data for development
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.isLoading = false
+            self.surveys = [
+                Survey(
+                    id: "1",
+                    title: "Technology Usage Survey",
+                    description: "Help us understand how you use technology in your daily life",
+                    category: .technology,
+                    pointsReward: 150,
+                    estimatedTime: 10,
+                    isCompleted: false,
+                    isAvailable: true,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "1", question: "How many hours do you spend on your phone daily?", type: .multipleChoice, options: ["0-2", "2-4", "4-6", "6+"], required: true),
+                        SurveyQuestion(id: "2", question: "What's your primary device?", type: .multipleChoice, options: ["iPhone", "Android", "Desktop", "Tablet"], required: true)
+                    ]
+                ),
+                Survey(
+                    id: "2",
+                    title: "Health & Wellness",
+                    description: "Share your thoughts on health and wellness habits",
+                    category: .health,
+                    pointsReward: 200,
+                    estimatedTime: 15,
+                    isCompleted: true,
+                    isAvailable: true,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "3", question: "How often do you exercise?", type: .multipleChoice, options: ["Never", "Rarely", "Sometimes", "Regularly"], required: true)
+                    ]
+                ),
+                Survey(
+                    id: "3",
+                    title: "Shopping Preferences",
+                    description: "Tell us about your online shopping habits",
+                    category: .lifestyle,
+                    pointsReward: 100,
+                    estimatedTime: 8,
+                    isCompleted: false,
+                    isAvailable: true,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "4", question: "Do you prefer online or in-store shopping?", type: .yesNo, options: nil, required: true)
+                    ]
+                )
+            ]
+        }
+        
+        // Uncomment for real API calls:
+        /*
         apiService.getSurveys(limit: 10)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -240,11 +287,48 @@ class HomeViewModel: ObservableObject {
                 }
             )
             .store(in: &cancellables)
+        */
     }
     
     func loadActivity() {
         isLoadingActivity = true
         
+        // TEMPORARY: Use mock data for development
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isLoadingActivity = false
+            self.activities = [
+                ActivityItem(
+                    id: "1",
+                    type: .surveyCompleted,
+                    title: "Survey Completed",
+                    description: "Technology Usage Survey",
+                    points: 150,
+                    createdAt: Date().addingTimeInterval(-3600),
+                    metadata: nil
+                ),
+                ActivityItem(
+                    id: "2",
+                    type: .pointsEarned,
+                    title: "Points Earned",
+                    description: "Bonus for quick completion",
+                    points: 25,
+                    createdAt: Date().addingTimeInterval(-7200),
+                    metadata: nil
+                ),
+                ActivityItem(
+                    id: "3",
+                    type: .pointsRedeemed,
+                    title: "Points Redeemed",
+                    description: "Amazon Gift Card",
+                    points: -500,
+                    createdAt: Date().addingTimeInterval(-86400),
+                    metadata: nil
+                )
+            ]
+        }
+        
+        // Uncomment for real API calls:
+        /*
         apiService.getActivityFeed(limit: 5)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -259,6 +343,7 @@ class HomeViewModel: ObservableObject {
                 }
             )
             .store(in: &cancellables)
+        */
     }
 }
 

@@ -28,10 +28,20 @@ class AuthManager: ObservableObject {
     
     // MARK: - Authentication State Management
     private func checkExistingAuth() {
+        // TEMPORARY: For development, start authenticated
         // In a real app, you'd check for stored auth token
-        // For now, we'll start with no authentication
-        isAuthenticated = false
-        currentUser = nil
+        isAuthenticated = true
+        currentUser = UserProfile(
+            id: "dev-user-1",
+            email: "dev@example.com",
+            firstName: "Developer",
+            lastName: "User",
+            avatarUrl: nil,
+            points: 1250,
+            joinDate: Date(),
+            surveysCompleted: 8,
+            totalEarned: 2500
+        )
     }
     
     func signIn(email: String, password: String) {

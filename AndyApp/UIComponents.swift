@@ -125,58 +125,7 @@ struct PointsCard: View {
 }
 
 // MARK: - Filter Components
-struct FilterPillsView: View {
-    let categories: [String]
-    @Binding var selectedCategory: String?
-    
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppSpacing.sm) {
-                // All option
-                FilterPill(
-                    title: "All",
-                    isSelected: selectedCategory == nil
-                ) {
-                    selectedCategory = nil
-                }
-                
-                // Category options
-                ForEach(categories, id: \.self) { category in
-                    FilterPill(
-                        title: category,
-                        isSelected: selectedCategory == category
-                    ) {
-                        selectedCategory = category
-                    }
-                }
-            }
-            .padding(.horizontal, AppSpacing.lg)
-        }
-    }
-}
-
-struct FilterPill: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(AppTypography.subheadline)
-                .foregroundColor(isSelected ? .white : AppColors.textPrimary)
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.vertical, AppSpacing.sm)
-                .background(isSelected ? AppColors.primaryGreen : AppColors.cardBackground)
-                .cornerRadius(AppCornerRadius.pill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppCornerRadius.pill)
-                        .stroke(isSelected ? AppColors.primaryGreen : AppColors.divider, lineWidth: 1)
-                )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
+// Note: FilterPill is now defined in TopNavigationView.swift
 
 // MARK: - Survey Components
 struct SurveyCard: View {

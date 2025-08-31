@@ -14,111 +14,107 @@ struct MailView: View {
     @State private var showingUnreadOnly = false
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Search and filter bar
-                VStack(spacing: AppSpacing.md) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(AppColors.textSecondary)
-                        
-                        TextField("Search messages...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                        
-                        if !searchText.isEmpty {
-                            Button(action: {
-                                searchText = ""
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                        }
-                    }
-                    .padding(AppSpacing.md)
-                    .background(AppColors.cardBackground)
-                    .cornerRadius(AppCornerRadius.medium)
-                    .shadow(
-                        color: AppShadows.small.color,
-                        radius: AppShadows.small.radius,
-                        x: AppShadows.small.x,
-                        y: AppShadows.small.y
-                    )
+        VStack(spacing: 0) {
+            // Search and filter bar
+            VStack(spacing: AppSpacing.md) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(AppColors.textSecondary)
                     
-                    // Filter toggle
-                    HStack {
-                        Toggle("Unread Only", isOn: $showingUnreadOnly)
-                            .font(AppTypography.body)
-                            .foregroundColor(AppColors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if viewModel.isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
-                                .scaleEffect(0.8)
+                    TextField("Search messages...", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(AppColors.textSecondary)
                         }
                     }
-                    .padding(.horizontal, AppSpacing.lg)
                 }
-                .padding(.vertical, AppSpacing.md)
-                .background(AppColors.background)
+                .padding(AppSpacing.md)
+                .background(AppColors.cardBackground)
+                .cornerRadius(AppCornerRadius.medium)
+                .shadow(
+                    color: AppShadows.small.color,
+                    radius: AppShadows.small.radius,
+                    x: AppShadows.small.x,
+                    y: AppShadows.small.y
+                )
                 
-                // Message list
-                if viewModel.isLoading && viewModel.messages.isEmpty {
-                    LoadingView(message: "Loading messages...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = viewModel.error {
-                    ErrorView(message: error) {
+                // Filter toggle
+                HStack {
+                    Toggle("Unread Only", isOn: $showingUnreadOnly)
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
+                            .scaleEffect(0.8)
+                    }
+                }
+                .padding(.horizontal, AppSpacing.lg)
+            }
+            .padding(.vertical, AppSpacing.md)
+            .background(AppColors.background)
+            
+            // Message list
+            if viewModel.isLoading && viewModel.messages.isEmpty {
+                LoadingView(message: "Loading messages...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = viewModel.error {
+                ErrorView(message: error) {
+                    viewModel.loadMessages()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredMessages.isEmpty {
+                EmptyStateView(
+                    icon: "envelope",
+                    title: searchText.isEmpty ? "No Messages" : "No Results Found",
+                    message: searchText.isEmpty ? 
+                        "You're all caught up! Check back later for new messages." :
+                        "Try adjusting your search or filters.",
+                    actionTitle: "Refresh",
+                    action: {
                         viewModel.loadMessages()
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if filteredMessages.isEmpty {
-                    EmptyStateView(
-                        icon: "envelope",
-                        title: searchText.isEmpty ? "No Messages" : "No Results Found",
-                        message: searchText.isEmpty ? 
-                            "You're all caught up! Check back later for new messages." :
-                            "Try adjusting your search or filters.",
-                        actionTitle: "Refresh",
-                        action: {
-                            viewModel.loadMessages()
-                        }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: AppSpacing.sm) {
-                            ForEach(filteredMessages) { message in
-                                MessageCard(message: message) {
-                                    viewModel.selectMessage(message)
-                                }
-                                .padding(.horizontal, AppSpacing.lg)
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: AppSpacing.sm) {
+                        ForEach(filteredMessages) { message in
+                            MessageCard(message: message) {
+                                viewModel.selectMessage(message)
                             }
-                            
-                            // Load more button
-                            if viewModel.hasMoreMessages && !viewModel.isLoading {
-                                Button("Load More") {
-                                    viewModel.loadMoreMessages()
-                                }
-                                .buttonStyle(SecondaryButtonStyle())
-                                .padding(.horizontal, AppSpacing.lg)
-                                .padding(.vertical, AppSpacing.md)
-                            }
+                            .padding(.horizontal, AppSpacing.lg)
                         }
-                        .padding(.vertical, AppSpacing.md)
+                        
+                        // Load more button
+                        if viewModel.hasMoreMessages && !viewModel.isLoading {
+                            Button("Load More") {
+                                viewModel.loadMoreMessages()
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .padding(.horizontal, AppSpacing.lg)
+                            .padding(.vertical, AppSpacing.md)
+                        }
                     }
+                    .padding(.vertical, AppSpacing.md)
                 }
             }
-            .background(AppColors.background)
-            .navigationTitle("Mail")
-            .navigationBarTitleDisplayMode(.large)
-            .onAppear {
-                viewModel.loadMessages()
-            }
-            .refreshable {
-                viewModel.loadMessages()
-            }
+        }
+        .background(AppColors.background)
+        .onAppear {
+            viewModel.loadMessages()
+        }
+        .refreshable {
+            viewModel.loadMessages()
         }
         .sheet(item: $viewModel.selectedMessage) { message in
             MessageDetailView(message: message)
@@ -164,6 +160,58 @@ class MailViewModel: ObservableObject {
         currentPage = 1
         messages = []
         
+        // TEMPORARY: Use mock data for development
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.isLoading = false
+            self.messages = [
+                MailMessage(
+                    id: "1",
+                    subject: "Welcome to Survey Rewards!",
+                    body: "Thank you for joining our community. Start completing surveys to earn points and redeem them for amazing rewards.",
+                    isRead: false,
+                    isImportant: true,
+                    sender: "Survey Rewards Team",
+                    createdAt: Date().addingTimeInterval(-3600),
+                    attachments: nil
+                ),
+                MailMessage(
+                    id: "2",
+                    subject: "New Survey Available",
+                    body: "We have a new technology survey available that matches your profile. Complete it to earn 150 points!",
+                    isRead: false,
+                    isImportant: false,
+                    sender: "Survey System",
+                    createdAt: Date().addingTimeInterval(-7200),
+                    attachments: nil
+                ),
+                MailMessage(
+                    id: "3",
+                    subject: "Points Redeemed Successfully",
+                    body: "Your Amazon gift card has been processed and will be delivered to your email within 24 hours.",
+                    isRead: true,
+                    isImportant: false,
+                    sender: "Rewards System",
+                    createdAt: Date().addingTimeInterval(-86400),
+                    attachments: [
+                        MailAttachment(id: "1", name: "receipt.pdf", url: "", size: 1024, type: "pdf")
+                    ]
+                ),
+                MailMessage(
+                    id: "4",
+                    subject: "Weekly Summary",
+                    body: "This week you completed 3 surveys and earned 425 points. Great job!",
+                    isRead: true,
+                    isImportant: false,
+                    sender: "Survey Rewards Team",
+                    createdAt: Date().addingTimeInterval(-172800),
+                    attachments: nil
+                )
+            ]
+            self.hasMoreMessages = false
+        }
+        
+        // Uncomment for real API calls:
+        /*
         apiService.getMailMessages(page: currentPage, limit: 20)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -179,6 +227,7 @@ class MailViewModel: ObservableObject {
                 }
             )
             .store(in: &cancellables)
+        */
     }
     
     func loadMoreMessages() {

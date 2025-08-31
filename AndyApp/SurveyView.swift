@@ -15,137 +15,133 @@ struct SurveyView: View {
     @State private var showingCompleted = false
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Search and filter bar
-                VStack(spacing: AppSpacing.md) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(AppColors.textSecondary)
-                        
-                        TextField("Search surveys...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                        
-                        if !searchText.isEmpty {
-                            Button(action: {
-                                searchText = ""
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
+        VStack(spacing: 0) {
+            // Search and filter bar
+            VStack(spacing: AppSpacing.md) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    TextField("Search surveys...", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(AppColors.textSecondary)
                         }
                     }
-                    .padding(AppSpacing.md)
-                    .background(AppColors.cardBackground)
-                    .cornerRadius(AppCornerRadius.medium)
-                    .shadow(
-                        color: AppShadows.small.color,
-                        radius: AppShadows.small.radius,
-                        x: AppShadows.small.x,
-                        y: AppShadows.small.y
-                    )
-                    
-                    // Category filters
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: AppSpacing.sm) {
+                }
+                .padding(AppSpacing.md)
+                .background(AppColors.cardBackground)
+                .cornerRadius(AppCornerRadius.medium)
+                .shadow(
+                    color: AppShadows.small.color,
+                    radius: AppShadows.small.radius,
+                    x: AppShadows.small.x,
+                    y: AppShadows.small.y
+                )
+                
+                // Category filters
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AppSpacing.sm) {
+                        FilterPill(
+                            title: "All",
+                            isSelected: selectedCategory == nil
+                        ) {
+                            selectedCategory = nil
+                        }
+                        
+                        ForEach(SurveyCategory.allCases, id: \.self) { category in
                             FilterPill(
-                                title: "All",
-                                isSelected: selectedCategory == nil
+                                title: category.displayName,
+                                isSelected: selectedCategory == category
                             ) {
-                                selectedCategory = nil
+                                selectedCategory = category
                             }
-                            
-                            ForEach(SurveyCategory.allCases, id: \.self) { category in
-                                FilterPill(
-                                    title: category.displayName,
-                                    isSelected: selectedCategory == category
-                                ) {
-                                    selectedCategory = category
-                                }
-                            }
-                        }
-                        .padding(.horizontal, AppSpacing.lg)
-                    }
-                    
-                    // Show completed toggle
-                    HStack {
-                        Toggle("Show Completed", isOn: $showingCompleted)
-                            .font(AppTypography.body)
-                            .foregroundColor(AppColors.textPrimary)
-                        
-                        Spacer()
-                        
-                        if viewModel.isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
-                                .scaleEffect(0.8)
                         }
                     }
                     .padding(.horizontal, AppSpacing.lg)
                 }
-                .padding(.vertical, AppSpacing.md)
-                .background(AppColors.background)
                 
-                // Survey list
-                if viewModel.isLoading && viewModel.surveys.isEmpty {
-                    LoadingView(message: "Loading surveys...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = viewModel.error {
-                    ErrorView(message: error) {
-                        viewModel.loadSurveys()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if filteredSurveys.isEmpty {
-                    EmptyStateView(
-                        icon: "doc.text",
-                        title: searchText.isEmpty ? "No Surveys Available" : "No Results Found",
-                        message: searchText.isEmpty ? 
-                            "Check back later for new surveys to complete and earn points." :
-                            "Try adjusting your search or filters.",
-                        actionTitle: "Refresh",
-                        action: {
-                            viewModel.loadSurveys()
-                        }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: AppSpacing.md) {
-                            ForEach(filteredSurveys) { survey in
-                                SurveyCard(survey: survey) {
-                                    // Navigate to survey detail
-                                    viewModel.selectSurvey(survey)
-                                }
-                                .padding(.horizontal, AppSpacing.lg)
-                            }
-                            
-                            // Load more button
-                            if viewModel.hasMoreSurveys && !viewModel.isLoading {
-                                Button("Load More") {
-                                    viewModel.loadMoreSurveys()
-                                }
-                                .buttonStyle(SecondaryButtonStyle())
-                                .padding(.horizontal, AppSpacing.lg)
-                                .padding(.vertical, AppSpacing.md)
-                            }
-                        }
-                        .padding(.vertical, AppSpacing.md)
+                // Show completed toggle
+                HStack {
+                    Toggle("Show Completed", isOn: $showingCompleted)
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Spacer()
+                    
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
+                            .scaleEffect(0.8)
                     }
                 }
+                .padding(.horizontal, AppSpacing.lg)
             }
+            .padding(.vertical, AppSpacing.md)
             .background(AppColors.background)
-            .navigationTitle("Surveys")
-            .navigationBarTitleDisplayMode(.large)
-            .onAppear {
-                viewModel.loadSurveys()
+            
+            // Survey list
+            if viewModel.isLoading && viewModel.surveys.isEmpty {
+                LoadingView(message: "Loading surveys...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = viewModel.error {
+                ErrorView(message: error) {
+                    viewModel.loadSurveys()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredSurveys.isEmpty {
+                EmptyStateView(
+                    icon: "doc.text",
+                    title: searchText.isEmpty ? "No Surveys Available" : "No Results Found",
+                    message: searchText.isEmpty ? 
+                        "Check back later for new surveys to complete and earn points." :
+                        "Try adjusting your search or filters.",
+                    actionTitle: "Refresh",
+                    action: {
+                        viewModel.loadSurveys()
+                    }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: AppSpacing.md) {
+                        ForEach(filteredSurveys) { survey in
+                            SurveyCard(survey: survey) {
+                                // Navigate to survey detail
+                                viewModel.selectSurvey(survey)
+                            }
+                            .padding(.horizontal, AppSpacing.lg)
+                        }
+                        
+                        // Load more button
+                        if viewModel.hasMoreSurveys && !viewModel.isLoading {
+                            Button("Load More") {
+                                viewModel.loadMoreSurveys()
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .padding(.horizontal, AppSpacing.lg)
+                            .padding(.vertical, AppSpacing.md)
+                        }
+                    }
+                    .padding(.vertical, AppSpacing.md)
+                }
             }
-            .onChange(of: selectedCategory) { _ in
-                viewModel.loadSurveys(category: selectedCategory)
-            }
-            .refreshable {
-                viewModel.loadSurveys(category: selectedCategory)
-            }
+        }
+        .background(AppColors.background)
+        .onAppear {
+            viewModel.loadSurveys()
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            viewModel.loadSurveys(category: selectedCategory)
+        }
+        .refreshable {
+            viewModel.loadSurveys(category: selectedCategory)
         }
         .sheet(item: $viewModel.selectedSurvey) { survey in
             SurveyDetailView(survey: survey)
@@ -193,6 +189,92 @@ class SurveyViewModel: ObservableObject {
         currentCategory = category
         surveys = []
         
+        // TEMPORARY: Use mock data for development
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.isLoading = false
+            self.surveys = [
+                Survey(
+                    id: "1",
+                    title: "Technology Usage Survey",
+                    description: "Help us understand how you use technology in your daily life",
+                    category: .technology,
+                    pointsReward: 150,
+                    estimatedTime: 10,
+                    isCompleted: false,
+                    isAvailable: true,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "1", question: "How many hours do you spend on your phone daily?", type: .multipleChoice, options: ["0-2", "2-4", "4-6", "6+"], required: true),
+                        SurveyQuestion(id: "2", question: "What's your primary device?", type: .multipleChoice, options: ["iPhone", "Android", "Desktop", "Tablet"], required: true)
+                    ]
+                ),
+                Survey(
+                    id: "2",
+                    title: "Health & Wellness",
+                    description: "Share your thoughts on health and wellness habits",
+                    category: .health,
+                    pointsReward: 200,
+                    estimatedTime: 15,
+                    isCompleted: true,
+                    isAvailable: true,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "3", question: "How often do you exercise?", type: .multipleChoice, options: ["Never", "Rarely", "Sometimes", "Regularly"], required: true)
+                    ]
+                ),
+                Survey(
+                    id: "3",
+                    title: "Shopping Preferences",
+                    description: "Tell us about your online shopping habits",
+                    category: .lifestyle,
+                    pointsReward: 100,
+                    estimatedTime: 8,
+                    isCompleted: false,
+                    isAvailable: true,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "4", question: "Do you prefer online or in-store shopping?", type: .yesNo, options: nil, required: true)
+                    ]
+                ),
+                Survey(
+                    id: "4",
+                    title: "Financial Habits",
+                    description: "Understanding personal finance behaviors",
+                    category: .finance,
+                    pointsReward: 175,
+                    estimatedTime: 12,
+                    isCompleted: false,
+                    isAvailable: true,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "5", question: "How do you primarily save money?", type: .multipleChoice, options: ["Savings Account", "Investment", "Cash", "Other"], required: true)
+                    ]
+                ),
+                Survey(
+                    id: "5",
+                    title: "Entertainment Preferences",
+                    description: "What do you enjoy watching and listening to?",
+                    category: .entertainment,
+                    pointsReward: 125,
+                    estimatedTime: 7,
+                    isCompleted: false,
+                    isAvailable: false,
+                    createdAt: Date(),
+                    expiresAt: nil,
+                    questions: [
+                        SurveyQuestion(id: "6", question: "What's your favorite streaming service?", type: .multipleChoice, options: ["Netflix", "Disney+", "Hulu", "Other"], required: true)
+                    ]
+                )
+            ]
+            self.hasMoreSurveys = false
+        }
+        
+        // Uncomment for real API calls:
+        /*
         apiService.getSurveys(category: category, page: currentPage, limit: 20)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -208,6 +290,7 @@ class SurveyViewModel: ObservableObject {
                 }
             )
             .store(in: &cancellables)
+        */
     }
     
     func loadMoreSurveys() {

@@ -11,64 +11,93 @@ struct MainTabView: View {
     @StateObject private var authManager = AuthManager.shared
     @State private var selectedTab = 0
     @State private var showingProfileMenu = false
+    @State private var selectedFilter: String?
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Main Tab View
-                TabView(selection: $selectedTab) {
-                    HomeView()
-                        .tabItem {
-                            Image(systemName: "house.fill")
-                            Text("Home")
-                        }
-                        .tag(0)
-                    
-                    SurveyView()
-                        .tabItem {
-                            Image(systemName: "doc.text.fill")
-                            Text("Survey")
-                        }
-                        .tag(1)
-                    
-                    MailView()
-                        .tabItem {
-                            Image(systemName: "envelope.fill")
-                            Text("Mail")
-                        }
-                        .tag(2)
-                    
-                    RedeemView()
-                        .tabItem {
-                            Image(systemName: "gift.fill")
-                            Text("Redeem")
-                        }
-                        .tag(3)
-                }
-                .accentColor(AppColors.primaryGreen)
-                
-                // Profile Menu Overlay
-                if showingProfileMenu {
-                    ProfileMenuView(isShowing: $showingProfileMenu)
-                        .transition(.move(edge: .leading))
-                        .zIndex(1)
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showingProfileMenu.toggle()
-                        }
-                    }) {
-                        Image(systemName: "line.horizontal.3")
-                            .foregroundColor(AppColors.textPrimary)
+        VStack(spacing: 0) {
+            // Top Navigation Bar
+            TopNavigationView(
+                title: tabTitle,
+                showProfileMenu: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showingProfileMenu.toggle()
                     }
-                }
+                },
+                showNotifications: {
+                    // Placeholder for notifications
+                },
+                filterCategories: filterCategories,
+                selectedFilter: $selectedFilter
+            )
+            
+            // Main Tab View
+            TabView(selection: $selectedTab) {
+                HomeView()
+                    .tabItem {
+                        Image(systemName: "house.fill")
+                        Text("Home")
+                    }
+                    .tag(0)
+                
+                SurveyView()
+                    .tabItem {
+                        Image(systemName: "doc.text.fill")
+                        Text("Survey")
+                    }
+                    .tag(1)
+                
+                MailView()
+                    .tabItem {
+                        Image(systemName: "envelope.fill")
+                        Text("Mail")
+                    }
+                    .tag(2)
+                
+                RedeemView()
+                    .tabItem {
+                        Image(systemName: "gift.fill")
+                        Text("Redeem")
+                    }
+                    .tag(3)
+            }
+            .accentColor(AppColors.primaryGreen)
+            .onAppear {
+                // Set tab bar appearance to black background
+                let appearance = UITabBarAppearance()
+                appearance.configureWithOpaqueBackground()
+                appearance.backgroundColor = UIColor.black
+                UITabBar.appearance().standardAppearance = appearance
+                UITabBar.appearance().scrollEdgeAppearance = appearance
+            }
+            
+            // Profile Menu Overlay
+            if showingProfileMenu {
+                ProfileMenuView(isShowing: $showingProfileMenu)
+                    .transition(.move(edge: .leading))
+                    .zIndex(1)
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
+        .background(AppColors.background)
+    }
+    
+    private var tabTitle: String {
+        switch selectedTab {
+        case 0: return "Home"
+        case 1: return "Survey"
+        case 2: return "Mail"
+        case 3: return "Redeem"
+        default: return "Home"
+        }
+    }
+    
+    private var filterCategories: [String] {
+        switch selectedTab {
+        case 0: return ["Technology", "Health", "Finance", "Entertainment", "Lifestyle"]
+        case 1: return ["Technology", "Health", "Finance", "Entertainment", "Education", "Lifestyle"]
+        case 2: return ["Important", "Unread", "System", "Updates"]
+        case 3: return ["Gift Cards", "Merchandise", "Donations", "Experiences"]
+        default: return []
+        }
     }
 }
 
