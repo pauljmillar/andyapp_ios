@@ -16,13 +16,103 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: AppSpacing.lg) {
-                // Header with points
-                PointsCard(
-                    points: authManager.currentUser?.points ?? 0,
-                    title: "Total Points",
-                    subtitle: "Earn more by completing surveys"
-                )
+                // Announcement card
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    Text("Limited Time Offer")
+                        .font(AppTypography.headline)
+                        .foregroundColor(.white)
+                    
+                    Text("Get 50% more points on your next scan!")
+                        .font(AppTypography.body)
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(AppSpacing.lg)
+                .background(Color.black)
+                .cornerRadius(AppCornerRadius.medium)
                 .padding(.horizontal, AppSpacing.lg)
+                
+                // Dashboard section
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    Text("Your dashboard")
+                        .font(AppTypography.title2)
+                        .foregroundColor(AppColors.textPrimary)
+                        .padding(.horizontal, AppSpacing.lg)
+                    
+                    // Metric cards - 2x2 grid
+                    VStack(spacing: AppSpacing.sm) {
+                        // Top row
+                        HStack(spacing: AppSpacing.sm) {
+                            // Top left - Points
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                Text("points")
+                                    .font(AppTypography.caption1)
+                                    .foregroundColor(.white)
+                                
+                                Text("\(authManager.currentUser?.points ?? 0)")
+                                    .font(AppTypography.title3)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(AppSpacing.md)
+                            .background(Color(hex: "#dc148c"))
+                            .cornerRadius(AppCornerRadius.medium)
+                            
+                            // Top right - Redeemed
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                Text("redeemed")
+                                    .font(AppTypography.caption1)
+                                    .foregroundColor(.white)
+                                
+                                Text("\(authManager.currentUser?.totalEarned ?? 0)")
+                                    .font(AppTypography.title3)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(AppSpacing.md)
+                            .background(Color(hex: "#1e3264"))
+                            .cornerRadius(AppCornerRadius.medium)
+                        }
+                        
+                        // Bottom row
+                        HStack(spacing: AppSpacing.sm) {
+                            // Bottom left - Scans
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                Text("scans")
+                                    .font(AppTypography.caption1)
+                                    .foregroundColor(.white)
+                                
+                                Text("\(authManager.currentUser?.surveysCompleted ?? 0)")
+                                    .font(AppTypography.title3)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(AppSpacing.md)
+                            .background(Color(hex: "#8400e7"))
+                            .cornerRadius(AppCornerRadius.medium)
+                            
+                            // Bottom right - Surveys
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                Text("surveys")
+                                    .font(AppTypography.caption1)
+                                    .foregroundColor(.white)
+                                
+                                Text("\(authManager.currentUser?.surveysCompleted ?? 0)")
+                                    .font(AppTypography.title3)
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(AppSpacing.md)
+                            .background(Color(hex: "#006450"))
+                            .cornerRadius(AppCornerRadius.medium)
+                        }
+                    }
+                    .padding(.horizontal, AppSpacing.lg)
+                }
                 
                 // Quick actions
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
@@ -152,30 +242,7 @@ struct HomeView: View {
                     }
                 }
                 
-                // Stats section
-                VStack(alignment: .leading, spacing: AppSpacing.md) {
-                    Text("Your Stats")
-                        .font(AppTypography.title2)
-                        .foregroundColor(AppColors.textPrimary)
-                        .padding(.horizontal, AppSpacing.lg)
-                    
-                    HStack(spacing: AppSpacing.md) {
-                        StatCard(
-                            title: "Surveys Completed",
-                            value: "\(authManager.currentUser?.surveysCompleted ?? 0)",
-                            icon: "checkmark.circle.fill",
-                            color: AppColors.success
-                        )
-                        
-                        StatCard(
-                            title: "Total Earned",
-                            value: "\(authManager.currentUser?.totalEarned ?? 0) pts",
-                            icon: "star.fill",
-                            color: AppColors.primaryGreen
-                        )
-                    }
-                    .padding(.horizontal, AppSpacing.lg)
-                }
+
             }
             .padding(.vertical, AppSpacing.lg)
         }
