@@ -9,12 +9,18 @@ import SwiftUI
 
 @main
 struct AndyAppApp: App {
-    let persistenceController = PersistenceController.shared
-
+    @StateObject private var authManager = AuthManager.shared
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            Group {
+                if authManager.isAuthenticated {
+                    MainTabView()
+                } else {
+                    SignInView()
+                }
+            }
+            .environmentObject(authManager)
         }
     }
 }
