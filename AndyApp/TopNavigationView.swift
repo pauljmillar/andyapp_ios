@@ -104,7 +104,7 @@ struct FilterPill: View {
                 .font(AppTypography.subheadline)
                 .foregroundColor(isSelected ? .black : AppColors.textPrimary)
                 .padding(.horizontal, AppSpacing.md)
-                .padding(.vertical, AppSpacing.sm)
+                .padding(.vertical, AppSpacing.xs) // Reduced from .sm to .xs
                 .background(isSelected ? AppColors.primaryGreen : AppColors.cardBackground)
                 .cornerRadius(AppCornerRadius.pill)
                 .overlay(
