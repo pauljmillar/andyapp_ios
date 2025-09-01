@@ -15,10 +15,15 @@ class APIService: ObservableObject {
     private let baseURL = "https://survey-khaki-chi.vercel.app"
     private var authToken: String?
     
+    var currentAuthToken: String? {
+        return authToken
+    }
+    
     private init() {}
     
     // MARK: - Authentication
     func setAuthToken(_ token: String) {
+        print("🔑 APIService: Setting auth token: \(token)")
         self.authToken = token
     }
     
@@ -117,10 +122,27 @@ class APIService: ObservableObject {
     // MARK: - Available Surveys Endpoint
     func fetchAvailableSurveys(limit: Int = 6, offset: Int = 0) -> AnyPublisher<AvailableSurveysResponse, APIError> {
         let endpoint = "/api/surveys/available?limit=\(limit)&offset=\(offset)"
+        print("🌐 Available Surveys API - Endpoint: \(endpoint)")
+        print("🌐 Available Surveys API - Full URL: \(baseURL)\(endpoint)")
         return makeRequest(
             endpoint: endpoint,
             method: .GET,
             responseType: AvailableSurveysResponse.self
+        )
+    }
+    
+    // MARK: - Point Ledger Endpoint
+    func fetchPointLedger(limit: Int = 6, offset: Int = 0, transactionType: String? = nil) -> AnyPublisher<PointLedgerResponse, APIError> {
+        var endpoint = "/api/panelist/point-ledger?limit=\(limit)&offset=\(offset)"
+        if let transactionType = transactionType {
+            endpoint += "&transactionType=\(transactionType)"
+        }
+        print("🌐 Point Ledger API - Endpoint: \(endpoint)")
+        print("🌐 Point Ledger API - Full URL: \(baseURL)\(endpoint)")
+        return makeRequest(
+            endpoint: endpoint,
+            method: .GET,
+            responseType: PointLedgerResponse.self
         )
     }
     

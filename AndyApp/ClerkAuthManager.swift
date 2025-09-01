@@ -115,6 +115,7 @@ final class ClerkAuthManager: ObservableObject {
             
             // Set token in API service
             print("🔑 Setting auth token in API service...")
+            print("🔑 Token being set: \(token)")
             apiService.setAuthToken(token)
             
             // Fetch panelist profile

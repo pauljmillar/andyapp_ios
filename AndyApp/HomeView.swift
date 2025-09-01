@@ -114,46 +114,6 @@ struct HomeView: View {
                     .padding(.horizontal, AppSpacing.lg)
                 }
                 
-                // Quick actions
-                VStack(alignment: .leading, spacing: AppSpacing.md) {
-                    Text("Quick Actions")
-                        .font(AppTypography.title2)
-                        .foregroundColor(AppColors.textPrimary)
-                        .padding(.horizontal, AppSpacing.lg)
-                    
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: AppSpacing.md) {
-                            InfoCard(
-                                title: "Take Survey",
-                                subtitle: "Earn points",
-                                icon: "doc.text.fill",
-                                color: AppColors.primaryGreen
-                            ) {
-                                // Navigate to survey tab
-                            }
-                            
-                            InfoCard(
-                                title: "Redeem Points",
-                                subtitle: "Get rewards",
-                                icon: "gift.fill",
-                                color: AppColors.warning
-                            ) {
-                                // Navigate to redeem tab
-                            }
-                            
-                            InfoCard(
-                                title: "Check Mail",
-                                subtitle: "New messages",
-                                icon: "envelope.fill",
-                                color: AppColors.info
-                            ) {
-                                // Navigate to mail tab
-                            }
-                        }
-                        .padding(.horizontal, AppSpacing.lg)
-                    }
-                }
-                
                 // Available surveys section
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
                     HStack {
@@ -171,7 +131,7 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, AppSpacing.lg)
                     
-                    // Survey cards
+                    // Survey cards - horizontal scrolling
                     if viewModel.isLoading {
                         LoadingView(message: "Loading surveys...")
                             .frame(height: 200)
@@ -192,13 +152,16 @@ struct HomeView: View {
                         )
                         .frame(height: 200)
                     } else {
-                        LazyVStack(spacing: AppSpacing.md) {
-                            ForEach(filteredSurveys) { survey in
-                                SurveyCard(survey: survey) {
-                                    // Navigate to survey detail
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: AppSpacing.md) {
+                                ForEach(filteredSurveys) { survey in
+                                    SurveyCard(survey: survey) {
+                                        // Navigate to survey detail
+                                    }
+                                    .frame(width: 280) // Fixed width for horizontal scrolling
                                 }
-                                .padding(.horizontal, AppSpacing.lg)
                             }
+                            .padding(.horizontal, AppSpacing.lg)
                         }
                     }
                 }
@@ -248,25 +211,29 @@ struct HomeView: View {
         }
         .background(AppColors.background)
         .onAppear {
-            viewModel.loadSurveys()
-            viewModel.loadActivity()
-            authManager.refreshUserProfile()
+            // Load panelist profile first to set auth token, then load surveys
+            Task {
+                await authManager.fetchPanelistProfile()
+                await MainActor.run {
+                    viewModel.loadSurveys()
+                    viewModel.loadActivity()
+                }
+            }
         }
         .refreshable {
-            viewModel.loadSurveys()
-            viewModel.loadActivity()
-            authManager.refreshUserProfile()
+            Task {
+                await authManager.fetchPanelistProfile()
+                await MainActor.run {
+                    viewModel.loadSurveys()
+                    viewModel.loadActivity()
+                }
+            }
         }
     }
     
     private var filteredSurveys: [Survey] {
-        guard let selectedCategory = selectedCategory else {
-            return viewModel.surveys
-        }
-        
-        return viewModel.surveys.filter { survey in
-            survey.category.displayName == selectedCategory
-        }
+        // Since we removed category filtering, just return all surveys
+        return viewModel.surveys
     }
 }
 
@@ -286,6 +253,7 @@ class HomeViewModel: ObservableObject {
         error = nil
         
         print("🔄 Loading available surveys from API...")
+        print("🔑 Current auth token: \(apiService.currentAuthToken ?? "No token")")
         
         apiService.fetchAvailableSurveys(limit: 6, offset: 0)
             .receive(on: DispatchQueue.main)
@@ -325,57 +293,57 @@ class HomeViewModel: ObservableObject {
     func loadActivity() {
         isLoadingActivity = true
         
-        // TEMPORARY: Use mock data for development
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.isLoadingActivity = false
-            self.activities = [
-                ActivityItem(
-                    id: "1",
-                    type: .surveyCompleted,
-                    title: "Survey Completed",
-                    description: "Technology Usage Survey",
-                    points: 150,
-                    createdAt: Date().addingTimeInterval(-3600),
-                    metadata: nil
-                ),
-                ActivityItem(
-                    id: "2",
-                    type: .pointsEarned,
-                    title: "Points Earned",
-                    description: "Bonus for quick completion",
-                    points: 25,
-                    createdAt: Date().addingTimeInterval(-7200),
-                    metadata: nil
-                ),
-                ActivityItem(
-                    id: "3",
-                    type: .pointsRedeemed,
-                    title: "Points Redeemed",
-                    description: "Amazon Gift Card",
-                    points: -500,
-                    createdAt: Date().addingTimeInterval(-86400),
-                    metadata: nil
-                )
-            ]
-        }
+        print("🔄 Loading point ledger from API...")
+        print("🔑 Current auth token: \(apiService.currentAuthToken ?? "No token")")
         
-        // Uncomment for real API calls:
-        /*
-        apiService.getActivityFeed(limit: 5)
+        apiService.fetchPointLedger(limit: 10, offset: 0)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoadingActivity = false
-                    if case .failure = completion {
-                        // Don't show error for activity loading
+                    if case .failure(let error) = completion {
+                        print("❌ Error loading point ledger: \(error)")
+                        // Don't show error for activity loading, just keep empty
                     }
                 },
                 receiveValue: { [weak self] response in
-                    self?.activities = response.data
+                    print("✅ Point ledger loaded: \(response.ledgerEntries.count) entries")
+                    print("📊 Total ledger entries: \(response.pagination.total)")
+                    
+                    // Convert LedgerEntry to ActivityItem for compatibility
+                    self?.activities = response.ledgerEntries.map { ledgerEntry in
+                        ActivityItem(
+                            id: UUID().uuidString, // Generate unique ID since ledger doesn't provide one
+                            type: self?.getActivityType(from: ledgerEntry.transactionType) ?? .pointsEarned,
+                            title: ledgerEntry.title,
+                            description: ledgerEntry.description ?? "",
+                            points: ledgerEntry.points,
+                            createdAt: Date(), // We'll use current date since API provides string
+                            metadata: [
+                                "transactionType": ledgerEntry.transactionType,
+                                "formattedPoints": ledgerEntry.formattedPoints,
+                                "transactionTypeDisplay": ledgerEntry.transactionTypeDisplay,
+                                "transactionTypeColor": ledgerEntry.transactionTypeColor
+                            ]
+                        )
+                    }
                 }
             )
             .store(in: &cancellables)
-        */
+    }
+    
+    // Helper function to convert transaction type to ActivityType
+    private func getActivityType(from transactionType: String) -> ActivityItem.ActivityType {
+        switch transactionType {
+        case "survey_completion":
+            return .surveyCompleted
+        case "redemption":
+            return .pointsRedeemed
+        case "bonus", "manual_award", "account_signup_bonus", "app_download_bonus":
+            return .pointsEarned
+        default:
+            return .pointsEarned
+        }
     }
 }
 

@@ -140,6 +140,75 @@ struct AvailableSurvey: Codable {
     }
 }
 
+// MARK: - Point Ledger API Response
+struct PointLedgerResponse: Codable {
+    let ledgerEntries: [LedgerEntry]
+    let pagination: PointLedgerPagination
+    
+    enum CodingKeys: String, CodingKey {
+        case ledgerEntries = "ledgerEntries"
+        case pagination
+    }
+}
+
+struct LedgerEntry: Codable {
+    let points: Int
+    let transactionType: String
+    let title: String
+    let description: String?
+    let createdAt: String
+    
+    enum CodingKeys: String, CodingKey {
+        case points
+        case transactionType = "transaction_type"
+        case title
+        case description
+        case createdAt = "created_at"
+    }
+    
+    // Helper computed properties for display
+    var formattedPoints: String {
+        return points >= 0 ? "+\(points) points" : "\(points) points"
+    }
+    
+    var transactionTypeDisplay: String {
+        switch transactionType {
+        case "survey_completion": return "Survey"
+        case "manual_award": return "Award"
+        case "bonus": return "Bonus"
+        case "redemption": return "Redeem"
+        case "account_signup_bonus": return "Signup Bonus"
+        case "app_download_bonus": return "App Bonus"
+        default: return transactionType.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+    
+    var transactionTypeColor: String {
+        switch transactionType {
+        case "survey_completion", "manual_award", "bonus", "account_signup_bonus", "app_download_bonus":
+            return "Earn"
+        case "redemption":
+            return "Redeem"
+        default:
+            return "Other"
+        }
+    }
+}
+
+struct PointLedgerPagination: Codable {
+    let limit: Int
+    let offset: Int
+    let total: Int
+    let hasMore: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case limit
+        case offset
+        case total
+        case hasMore
+    }
+}
+
 // MARK: - User Profile
 struct UserProfile: Codable, Identifiable {
     let id: String
