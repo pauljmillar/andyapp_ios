@@ -403,10 +403,10 @@ class APIService: ObservableObject {
         )
     }
     
-    func submitSurveyCompletion(_ request: SurveyCompletionRequest) -> AnyPublisher<SurveyCompletionResponse, APIError> {
-        print("🌐 Survey Completion API - Endpoint: /api/survey-completions")
-        print("🌐 Survey Completion API - Full URL: \(baseURL)/api/survey-completions")
-        print("📝 Completion data: survey_id=\(request.surveyId), points=\(request.pointsEarned), responses=\(request.responseData.count)")
+    func submitSurveyCompletion(_ request: SurveyCompletionRequest) -> AnyPublisher<SurveyCompletion, APIError> {
+        print("🌐 Survey Completion API - Endpoint: /api/panelist/survey-completion")
+        print("🌐 Survey Completion API - Full URL: \(baseURL)/api/panelist/survey-completion")
+        print("📝 Completion data: survey_id=\(request.surveyId), responses=\(request.responses.count)")
         
         // Encode request to JSON data
         guard let jsonData = try? JSONEncoder().encode(request) else {
@@ -414,30 +414,16 @@ class APIService: ObservableObject {
                 .eraseToAnyPublisher()
         }
         
-        return makeRequest(
-            endpoint: "/api/survey-completions",
-            method: .POST,
-            body: jsonData,
-            responseType: SurveyCompletionResponse.self
-        )
-    }
-    
-    func awardPoints(_ request: AwardPointsRequest) -> AnyPublisher<String, APIError> {
-        print("🌐 Award Points API - Endpoint: /api/rpc/award-points")
-        print("🌐 Award Points API - Full URL: \(baseURL)/api/rpc/award-points")
-        print("💰 Awarding \(request.pPoints) points to panelist \(request.pPanelistId)")
-        
-        // Encode request to JSON data
-        guard let jsonData = try? JSONEncoder().encode(request) else {
-            return Fail(error: APIError.invalidResponse)
-                .eraseToAnyPublisher()
-            }
+        // Debug: Print the actual JSON being sent
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("📤 Request JSON: \(jsonString)")
+        }
         
         return makeRequest(
-            endpoint: "/api/rpc/award-points",
+            endpoint: "/api/panelist/survey-completion",
             method: .POST,
             body: jsonData,
-            responseType: String.self
+            responseType: SurveyCompletion.self
         )
     }
 }

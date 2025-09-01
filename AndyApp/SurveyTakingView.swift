@@ -36,7 +36,8 @@ struct SurveyTakingView: View {
                     
                     // Progress bar
                     if surveyState.questions.count > 0 {
-                        ProgressView(value: Double(surveyState.currentQuestionIndex + 1), total: Double(surveyState.questions.count))
+                        let progress = Double(surveyState.currentQuestionIndex + 1) / Double(surveyState.questions.count)
+                        ProgressView(value: progress, total: 1.0)
                             .progressViewStyle(LinearProgressViewStyle(tint: AppColors.primaryGreen))
                             .padding(.horizontal, AppSpacing.lg)
                     }
@@ -135,13 +136,15 @@ struct SurveyTakingView: View {
                 Text("Are you sure you want to exit? Your progress will be lost.")
             }
             .sheet(isPresented: $viewModel.showingCompletion) {
-                SurveyCompletionView(
-                    survey: survey,
-                    pointsEarned: survey.points,
-                    onDismiss: {
-                        dismiss()
-                    }
-                )
+                if let completionData = viewModel.completionData {
+                    SurveyCompletionView(
+                        survey: survey,
+                        completionData: completionData,
+                        onDismiss: {
+                            dismiss()
+                        }
+                    )
+                }
             }
         }
     }
@@ -153,6 +156,7 @@ class SurveyTakingViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
     @Published var showingCompletion = false
+    @Published var completionData: SurveyCompletion?
     
     private let apiService = APIService.shared
     private var cancellables = Set<AnyCancellable>()
@@ -187,17 +191,80 @@ class SurveyTakingViewModel: ObservableObject {
         print("📝 Survey ID: \(survey.id)")
         print("📝 Responses: \(responses)")
         
-        // TODO: Implement actual API calls for survey submission
-        // For now, just show completion and log the data
+        // Convert responses to SurveyQuestionResponse format and order by question_order
+        var surveyResponses: [SurveyQuestionResponse] = []
         
-        // Simulate API call delay
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        // Sort questions by order and create responses in the correct order
+        let sortedQuestions = self.surveyQuestions.sorted { $0.questionOrder < $1.questionOrder }
         
-        await MainActor.run {
-            print("✅ Survey submission completed, showing completion view")
-            showingCompletion = true
+        for question in sortedQuestions {
+            guard let answer = responses[question.id] else {
+                print("⚠️ Warning: No response found for question ID: \(question.id)")
+                continue
+            }
+            
+            // Create response with current timestamp
+            let currentTimestamp = ISO8601DateFormatter().string(from: Date())
+            
+            let response = SurveyQuestionResponse(
+                questionId: question.id,
+                responseValue: answer,
+                questionType: question.questionType,
+                submittedAt: currentTimestamp
+            )
+            surveyResponses.append(response)
+        }
+        
+        // Validate that all required questions are answered
+        let requiredQuestions = self.surveyQuestions.filter { $0.isRequired }
+        let answeredRequiredQuestions = requiredQuestions.filter { question in
+            responses.keys.contains(question.id) && !responses[question.id]!.isEmpty
+        }
+        
+        if answeredRequiredQuestions.count < requiredQuestions.count {
+            let missingQuestions = requiredQuestions.filter { question in
+                !responses.keys.contains(question.id) || responses[question.id]!.isEmpty
+            }
+            print("❌ Missing answers for required questions: \(missingQuestions.map { $0.questionText })")
+            await MainActor.run {
+                self.error = "Please answer all required questions"
+            }
+            return
+        }
+        
+        // Debug: Print the responses being sent
+        print("🔍 Survey responses before encoding:")
+        for response in surveyResponses {
+            print("  - Question ID: \(response.questionId), Response Value: \(response.responseValue), Type: \(response.responseMetadata.questionType)")
+        }
+        
+        let request = SurveyCompletionRequest(
+            surveyId: survey.id,
+            responses: surveyResponses
+        )
+        
+        do {
+            let completion = try await apiService.submitSurveyCompletion(request).async()
+            
+            await MainActor.run {
+                print("✅ Survey submission completed successfully!")
+                print("💰 Points earned: \(completion.pointsEarned)")
+                print("💰 New balance: \(completion.newBalance)")
+                print("📝 Message: \(completion.message)")
+                
+                // Store completion data for the completion view
+                self.completionData = completion
+                showingCompletion = true
+            }
+        } catch {
+            await MainActor.run {
+                print("❌ Survey submission failed: \(error)")
+                self.error = error.localizedDescription
+            }
         }
     }
+    
+
 }
 
 // MARK: - Question View
@@ -499,7 +566,7 @@ struct SelectionButtonStyle: ButtonStyle {
 // MARK: - Survey Completion View
 struct SurveyCompletionView: View {
     let survey: SurveyViewItem
-    let pointsEarned: Int
+    let completionData: SurveyCompletion
     let onDismiss: () -> Void
     
     var body: some View {
@@ -519,18 +586,40 @@ struct SurveyCompletionView: View {
                     .font(AppTypography.body)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
+                
+                if !completionData.message.isEmpty {
+                    Text(completionData.message)
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColors.primaryGreen)
+                        .multilineTextAlignment(.center)
+                }
             }
             
-            // Points earned
-            VStack(spacing: AppSpacing.sm) {
-                Text("Points Earned")
-                    .font(AppTypography.title2)
-                    .foregroundColor(AppColors.textSecondary)
+            // Points earned and new balance
+            VStack(spacing: AppSpacing.lg) {
+                // Points earned
+                VStack(spacing: AppSpacing.sm) {
+                    Text("Points Earned")
+                        .font(AppTypography.title2)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("+\(completionData.pointsEarned)")
+                        .font(AppTypography.largeTitle)
+                        .foregroundColor(AppColors.primaryGreen)
+                        .fontWeight(.bold)
+                }
                 
-                Text("+\(pointsEarned)")
-                    .font(AppTypography.largeTitle)
-                    .foregroundColor(AppColors.primaryGreen)
-                    .fontWeight(.bold)
+                // New balance
+                VStack(spacing: AppSpacing.sm) {
+                    Text("New Balance")
+                        .font(AppTypography.title2)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("\(completionData.newBalance)")
+                        .font(AppTypography.title1)
+                        .foregroundColor(AppColors.textPrimary)
+                        .fontWeight(.bold)
+                }
             }
             .padding(AppSpacing.lg)
             .background(AppColors.cardBackground)

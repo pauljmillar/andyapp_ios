@@ -375,55 +375,60 @@ struct SurveyQuestionsResponse: Codable {
 // MARK: - Survey Response Models
 struct SurveyCompletionRequest: Codable {
     let surveyId: String
-    let panelistId: String
-    let pointsEarned: Int
-    let responseData: [String: String]
+    let responses: [SurveyQuestionResponse]
     
     enum CodingKeys: String, CodingKey {
         case surveyId = "survey_id"
-        case panelistId = "panelist_id"
-        case pointsEarned = "points_earned"
-        case responseData = "response_data"
+        case responses
     }
 }
 
-struct SurveyCompletionResponse: Codable {
-    let id: String
-    let surveyId: String
-    let panelistId: String
+struct SurveyQuestionResponse: Codable {
+    let questionId: String
+    let responseValue: String
+    let responseMetadata: ResponseMetadata
+    
+    enum CodingKeys: String, CodingKey {
+        case questionId = "question_id"
+        case responseValue = "response_value"
+        case responseMetadata = "response_metadata"
+    }
+    
+    init(questionId: String, responseValue: String, questionType: String, submittedAt: String) {
+        self.questionId = questionId
+        self.responseValue = responseValue
+        self.responseMetadata = ResponseMetadata(
+            submittedAt: submittedAt,
+            questionType: questionType
+        )
+    }
+}
+
+struct ResponseMetadata: Codable {
+    let submittedAt: String
+    let questionType: String
+    
+    enum CodingKeys: String, CodingKey {
+        case submittedAt = "submitted_at"
+        case questionType = "question_type"
+    }
+}
+
+struct SurveyCompletion: Codable {
+    let success: Bool
     let pointsEarned: Int
-    let responseData: [String: String]
-    let createdAt: String
+    let completionId: String
+    let newBalance: Int
+    let ledgerEntryId: String
+    let message: String
     
     enum CodingKeys: String, CodingKey {
-        case id
-        case surveyId = "survey_id"
-        case panelistId = "panelist_id"
+        case success
         case pointsEarned = "points_earned"
-        case responseData = "response_data"
-        case createdAt = "created_at"
-    }
-}
-
-struct AwardPointsRequest: Codable {
-    let pPanelistId: String
-    let pPoints: Int
-    let pTransactionType: String
-    let pTitle: String
-    let pDescription: String
-    let pMetadata: [String: String] // Changed from [String: Any] to [String: String]
-    let pAwardedBy: String?
-    let pEffectiveDate: String
-    
-    enum CodingKeys: String, CodingKey {
-        case pPanelistId = "p_panelist_id"
-        case pPoints = "p_points"
-        case pTransactionType = "p_transaction_type"
-        case pTitle = "p_title"
-        case pDescription = "p_description"
-        case pMetadata = "p_metadata"
-        case pAwardedBy = "p_awarded_by"
-        case pEffectiveDate = "p_effective_date"
+        case completionId = "completion_id"
+        case newBalance = "new_balance"
+        case ledgerEntryId = "ledger_entry_id"
+        case message
     }
 }
 
