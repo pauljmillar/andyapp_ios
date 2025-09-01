@@ -24,29 +24,139 @@ final class ClerkAuthManager: ObservableObject {
     private init() {
         // Configure Clerk with your publishable key
         Clerk.shared.configure(publishableKey: "pk_test_cmVhZHktYWFyZHZhcmstMTQuY2xlcmsuYWNjb3VudHMuZGV2JA")
-        checkCurrentUser()
+        
+        // Check for existing session first
+        Task {
+            await checkExistingSession()
+        }
     }
     
-    // MARK: - Check Current User
-    func checkCurrentUser() {
-        if let user = Clerk.shared.user {
-            // Convert Clerk User to our UserProfile
+    // MARK: - Check Existing Session
+    private func checkExistingSession() async {
+        // Check if there's already an active session
+        if let session = Clerk.shared.session, let user = session.user {
+            print("Found existing session for user: \(user.emailAddresses.first?.emailAddress ?? "unknown")")
+            
+            // Convert Clerk User to our UserProfile with default values
             let userProfile = UserProfile(
                 id: user.id,
                 email: user.emailAddresses.first?.emailAddress ?? "",
                 firstName: user.firstName,
                 lastName: user.lastName,
                 avatarUrl: user.imageUrl,
-                points: 1250, // Default points, should be fetched from your backend
+                points: 0, // Will be updated from API
                 joinDate: user.createdAt,
-                surveysCompleted: 8, // Default, should be fetched from your backend
-                totalEarned: 2500 // Default, should be fetched from your backend
+                surveysCompleted: 0, // Will be updated from API
+                totalEarned: 0, // Will be updated from API
+                totalRedeemed: 0, // Will be updated from API
+                totalScans: 0 // Will be updated from API
             )
-            currentUser = userProfile
-            isAuthenticated = true
+            
+            await MainActor.run {
+                currentUser = userProfile
+                isAuthenticated = true
+            }
+            
+            // Fetch panelist profile data
+            await fetchPanelistProfile()
         } else {
-            currentUser = nil
-            isAuthenticated = false
+            print("No existing session found")
+            await MainActor.run {
+                currentUser = nil
+                isAuthenticated = false
+            }
+        }
+    }
+    
+    // MARK: - Check Current User (Legacy method for compatibility)
+    func checkCurrentUser() {
+        Task {
+            await checkExistingSession()
+        }
+    }
+    
+    // MARK: - Generate JWT Token
+    private func generateJWTToken() async throws -> String {
+        guard let session = Clerk.shared.session else {
+            print("❌ No session found - user not authenticated")
+            throw APIError.unauthorized
+        }
+        
+        print("🔑 Session found - ID: \(session.id)")
+        print("🔑 Session user ID: \(session.user?.id ?? "unknown")")
+        print("🔑 Session user email: \(session.user?.emailAddresses.first?.emailAddress ?? "unknown")")
+        
+        // Get proper JWT token using session.getToken()
+        print("🔑 Requesting JWT token from session...")
+        guard let tokenResource = try await session.getToken() else {
+            print("❌ No token resource returned from session.getToken()")
+            throw APIError.unauthorized
+        }
+        
+        let jwtToken = tokenResource.jwt
+        print("🔑 JWT token received: \(jwtToken)")
+        
+        return jwtToken
+    }
+    
+    // MARK: - Fetch Panelist Profile
+    func fetchPanelistProfile() async {
+        guard isAuthenticated else { 
+            print("❌ Not authenticated, skipping panelist profile fetch")
+            return 
+        }
+        
+        print("🔄 Starting panelist profile fetch...")
+        
+        do {
+            // Generate JWT token
+            print("🔑 Generating JWT token...")
+            let token = try await generateJWTToken()
+            
+            // Set token in API service
+            print("🔑 Setting auth token in API service...")
+            apiService.setAuthToken(token)
+            
+            // Fetch panelist profile
+            print("🌐 Making API call to /api/auth/panelist-profile...")
+            let panelistProfile = try await apiService.fetchPanelistProfile()
+                .async()
+            
+            print("✅ Panelist profile received successfully!")
+            print("📊 Points Balance: \(panelistProfile.pointsBalance)")
+            print("📊 Total Earned: \(panelistProfile.totalPointsEarned)")
+            print("📊 Total Redeemed: \(panelistProfile.totalPointsRedeemed)")
+            print("📊 Surveys Completed: \(panelistProfile.surveysCompleted)")
+            print("📊 Total Scans: \(panelistProfile.totalScans)")
+            
+            // Update current user with real data
+            if let currentUser = currentUser {
+                let updatedUser = UserProfile(
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    firstName: currentUser.firstName,
+                    lastName: currentUser.lastName,
+                    avatarUrl: currentUser.avatarUrl,
+                    points: panelistProfile.pointsBalance,
+                    joinDate: currentUser.joinDate,
+                    surveysCompleted: panelistProfile.surveysCompleted,
+                    totalEarned: panelistProfile.totalPointsEarned,
+                    totalRedeemed: panelistProfile.totalPointsRedeemed,
+                    totalScans: panelistProfile.totalScans
+                )
+                
+                await MainActor.run {
+                    self.currentUser = updatedUser
+                    print("✅ User profile updated with API data")
+                }
+            }
+            
+        } catch {
+            print("❌ Error fetching panelist profile: \(error)")
+            print("❌ Error type: \(type(of: error))")
+            print("❌ Error description: \(error.localizedDescription)")
+            
+            // Keep using default values if API call fails
         }
     }
     
@@ -67,7 +177,9 @@ final class ClerkAuthManager: ObservableObject {
             points: 1250, // Default points, should be fetched from your backend
             joinDate: user.createdAt,
             surveysCompleted: 8, // Default, should be fetched from your backend
-            totalEarned: 2500 // Default, should be fetched from your backend
+            totalEarned: 2500, // Default, should be fetched from your backend
+            totalRedeemed: 0, // Default, should be fetched from your backend
+            totalScans: 0 // Default, should be fetched from your backend
         )
         
         currentUser = userProfile
@@ -86,7 +198,7 @@ final class ClerkAuthManager: ObservableObject {
             let signIn = try await SignIn.create(strategy: .identifier(email, password: password))
             
             if signIn.status == .complete {
-                checkCurrentUser()
+                await checkExistingSession()
             } else {
                 print("Sign-in incomplete. Status: \(signIn.status)")
             }
@@ -94,6 +206,15 @@ final class ClerkAuthManager: ObservableObject {
             isLoading = false
         } catch {
             isLoading = false
+            
+            // Handle "session exists" error gracefully
+            if error.localizedDescription.contains("Session already exists") || 
+               error.localizedDescription.contains("already signed in") {
+                print("Session already exists, checking current session...")
+                await checkExistingSession()
+                return // Don't throw error, just proceed
+            }
+            
             errorMessage = error.localizedDescription
             throw error
         }
@@ -152,8 +273,10 @@ final class ClerkAuthManager: ObservableObject {
     func refreshUserProfile() {
         guard isAuthenticated else { return }
         
-        // Refresh the current user data
-        checkCurrentUser()
+        // Fetch fresh panelist profile data
+        Task {
+            await fetchPanelistProfile()
+        }
     }
     
     func clearError() {

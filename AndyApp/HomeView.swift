@@ -65,7 +65,7 @@ struct HomeView: View {
                                     .font(AppTypography.caption1)
                                     .foregroundColor(.white)
                                 
-                                Text("\(authManager.currentUser?.totalEarned ?? 0)")
+                                Text("\(authManager.currentUser?.totalRedeemed ?? 0)")
                                     .font(AppTypography.title3)
                                     .foregroundColor(.white)
                                     .fontWeight(.bold)
@@ -84,7 +84,7 @@ struct HomeView: View {
                                     .font(AppTypography.caption1)
                                     .foregroundColor(.white)
                                 
-                                Text("\(authManager.currentUser?.surveysCompleted ?? 0)")
+                                Text("\(authManager.currentUser?.totalScans ?? 0)")
                                     .font(AppTypography.title3)
                                     .foregroundColor(.white)
                                     .fontWeight(.bold)
@@ -285,76 +285,41 @@ class HomeViewModel: ObservableObject {
         isLoading = true
         error = nil
         
-        // TEMPORARY: Use mock data for development
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.isLoading = false
-            self.surveys = [
-                Survey(
-                    id: "1",
-                    title: "Technology Usage Survey",
-                    description: "Help us understand how you use technology in your daily life",
-                    category: .technology,
-                    pointsReward: 150,
-                    estimatedTime: 10,
-                    isCompleted: false,
-                    isAvailable: true,
-                    createdAt: Date(),
-                    expiresAt: nil,
-                    questions: [
-                        SurveyQuestion(id: "1", question: "How many hours do you spend on your phone daily?", type: .multipleChoice, options: ["0-2", "2-4", "4-6", "6+"], required: true),
-                        SurveyQuestion(id: "2", question: "What's your primary device?", type: .multipleChoice, options: ["iPhone", "Android", "Desktop", "Tablet"], required: true)
-                    ]
-                ),
-                Survey(
-                    id: "2",
-                    title: "Health & Wellness",
-                    description: "Share your thoughts on health and wellness habits",
-                    category: .health,
-                    pointsReward: 200,
-                    estimatedTime: 15,
-                    isCompleted: true,
-                    isAvailable: true,
-                    createdAt: Date(),
-                    expiresAt: nil,
-                    questions: [
-                        SurveyQuestion(id: "3", question: "How often do you exercise?", type: .multipleChoice, options: ["Never", "Rarely", "Sometimes", "Regularly"], required: true)
-                    ]
-                ),
-                Survey(
-                    id: "3",
-                    title: "Shopping Preferences",
-                    description: "Tell us about your online shopping habits",
-                    category: .lifestyle,
-                    pointsReward: 100,
-                    estimatedTime: 8,
-                    isCompleted: false,
-                    isAvailable: true,
-                    createdAt: Date(),
-                    expiresAt: nil,
-                    questions: [
-                        SurveyQuestion(id: "4", question: "Do you prefer online or in-store shopping?", type: .yesNo, options: nil, required: true)
-                    ]
-                )
-            ]
-        }
+        print("🔄 Loading available surveys from API...")
         
-        // Uncomment for real API calls:
-        /*
-        apiService.getSurveys(limit: 10)
+        apiService.fetchAvailableSurveys(limit: 6, offset: 0)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
                     if case .failure(let error) = completion {
+                        print("❌ Error loading surveys: \(error)")
                         self?.error = error.localizedDescription
                     }
                 },
                 receiveValue: { [weak self] response in
-                    self?.surveys = response.data
+                    print("✅ Available surveys loaded: \(response.surveys.count) surveys")
+                    print("📊 Total surveys available: \(response.total)")
+                    
+                    // Convert AvailableSurvey to Survey format for compatibility
+                    self?.surveys = response.surveys.map { availableSurvey in
+                        Survey(
+                            id: availableSurvey.id,
+                            title: availableSurvey.title,
+                            description: availableSurvey.description,
+                            category: .general, // Default category since API doesn't provide it
+                            pointsReward: availableSurvey.pointsReward,
+                            estimatedTime: availableSurvey.estimatedCompletionTime,
+                            isCompleted: false, // Available surveys are not completed
+                            isAvailable: true,
+                            createdAt: Date(), // We'll use current date since API provides string
+                            expiresAt: nil,
+                            questions: [] // API doesn't provide questions for available surveys
+                        )
+                    }
                 }
             )
             .store(in: &cancellables)
-        */
     }
     
     func loadActivity() {

@@ -40,7 +40,9 @@ class AuthManager: ObservableObject {
             points: 1250,
             joinDate: Date(),
             surveysCompleted: 8,
-            totalEarned: 2500
+            totalEarned: 2500,
+            totalRedeemed: 100,
+            totalScans: 15
         )
     }
     

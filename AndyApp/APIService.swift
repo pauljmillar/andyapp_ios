@@ -35,16 +35,25 @@ class APIService: ObservableObject {
     ) -> AnyPublisher<T, APIError> {
         
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            print("❌ Invalid URL: \(baseURL)\(endpoint)")
             return Fail(error: APIError.invalidURL)
                 .eraseToAnyPublisher()
         }
         
+        print("🌐 Making request to: \(url)")
+        print("🌐 Method: \(method.rawValue)")
+        
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("AndyApp-iOS/1.0", forHTTPHeaderField: "User-Agent")
         
         if let token = authToken {
+            // Use Bearer prefix for JWT tokens
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            print("🔑 Authorization header set with Bearer token: \(token)")
+        } else {
+            print("⚠️ No auth token available")
         }
         
         if let body = body {
@@ -54,15 +63,34 @@ class APIService: ObservableObject {
         return URLSession.shared.dataTaskPublisher(for: request)
             .tryMap { data, response in
                 guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Invalid response type")
                     throw APIError.invalidResponse
                 }
                 
+                print("📡 Response status code: \(httpResponse.statusCode)")
+                print("📡 Response headers: \(httpResponse.allHeaderFields)")
+                
                 if httpResponse.statusCode == 401 {
+                    print("❌ Unauthorized (401) - Check your auth token")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("📡 Response body: \(responseString)")
+                    }
                     throw APIError.unauthorized
                 }
                 
                 if httpResponse.statusCode >= 400 {
+                    print("❌ Server error: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("📡 Response body: \(responseString)")
+                    }
                     throw APIError.serverError(httpResponse.statusCode)
+                }
+                
+                print("✅ Request successful")
+                
+                // Log the response body for debugging
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📡 Response body: \(responseString)")
                 }
                 
                 return data
@@ -75,6 +103,25 @@ class APIService: ObservableObject {
                 return APIError.decodingError(error)
             }
             .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Panelist Profile Endpoint
+    func fetchPanelistProfile() -> AnyPublisher<PanelistProfile, APIError> {
+        return makeRequest(
+            endpoint: "/api/auth/panelist-profile",
+            method: .GET,
+            responseType: PanelistProfile.self
+        )
+    }
+    
+    // MARK: - Available Surveys Endpoint
+    func fetchAvailableSurveys(limit: Int = 6, offset: Int = 0) -> AnyPublisher<AvailableSurveysResponse, APIError> {
+        let endpoint = "/api/surveys/available?limit=\(limit)&offset=\(offset)"
+        return makeRequest(
+            endpoint: endpoint,
+            method: .GET,
+            responseType: AvailableSurveysResponse.self
+        )
     }
     
     // MARK: - Authentication Endpoints
@@ -300,6 +347,31 @@ class APIService: ObservableObject {
             responseType: PaginatedResponse<ActivityItem>.self
         )
         .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - Combine to Async Extension
+extension Publisher {
+    func async() async throws -> Output {
+        try await withCheckedThrowingContinuation { continuation in
+            var cancellable: AnyCancellable?
+            cancellable = first()
+                .sink(
+                    receiveCompletion: { completion in
+                        switch completion {
+                        case .finished:
+                            break
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
+                        cancellable?.cancel()
+                    },
+                    receiveValue: { value in
+                        continuation.resume(returning: value)
+                        cancellable?.cancel()
+                    }
+                )
+        }
     }
 }
 

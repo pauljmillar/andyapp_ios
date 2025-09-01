@@ -7,6 +7,139 @@
 
 import Foundation
 
+// MARK: - Panelist Profile (API Response)
+struct PanelistProfile: Codable {
+    let id: String
+    let userId: String
+    let pointsBalance: Int
+    let totalPointsEarned: Int
+    let totalPointsRedeemed: Int
+    let surveysCompleted: Int
+    let totalScans: Int
+    let profileData: ProfileData
+    let isActive: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case pointsBalance = "points_balance"
+        case totalPointsEarned = "total_points_earned"
+        case totalPointsRedeemed = "total_points_redeemed"
+        case surveysCompleted = "surveys_completed"
+        case totalScans = "total_scans"
+        case profileData = "profile_data"
+        case isActive = "is_active"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        userId = try container.decode(String.self, forKey: .userId)
+        pointsBalance = try container.decode(Int.self, forKey: .pointsBalance)
+        totalPointsEarned = try container.decode(Int.self, forKey: .totalPointsEarned)
+        totalPointsRedeemed = try container.decode(Int.self, forKey: .totalPointsRedeemed)
+        surveysCompleted = try container.decode(Int.self, forKey: .surveysCompleted)
+        totalScans = try container.decode(Int.self, forKey: .totalScans)
+        profileData = try container.decode(ProfileData.self, forKey: .profileData)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        
+        // Handle date decoding with custom formatter
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        let createdAtString = try container.decode(String.self, forKey: .createdAt)
+        if let createdAtDate = dateFormatter.date(from: createdAtString) {
+            createdAt = createdAtDate
+        } else {
+            // Fallback to standard ISO8601 format
+            let fallbackFormatter = ISO8601DateFormatter()
+            createdAt = fallbackFormatter.date(from: createdAtString) ?? Date()
+        }
+        
+        let updatedAtString = try container.decode(String.self, forKey: .updatedAt)
+        if let updatedAtDate = dateFormatter.date(from: updatedAtString) {
+            updatedAt = updatedAtDate
+        } else {
+            // Fallback to standard ISO8601 format
+            let fallbackFormatter = ISO8601DateFormatter()
+            updatedAt = fallbackFormatter.date(from: updatedAtString) ?? Date()
+        }
+    }
+}
+
+struct ProfileData: Codable {
+    let firstName: String
+    let lastName: String
+    let age: Int?
+    let gender: String?
+    let location: Location?
+    let demographics: Demographics?
+    let interests: [String]?
+    
+    enum CodingKeys: String, CodingKey {
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case age, gender, location, demographics, interests
+    }
+}
+
+struct Location: Codable {
+    let city: String?
+    let state: String?
+    let country: String?
+}
+
+struct Demographics: Codable {
+    let education: String?
+    let employment: String?
+    let incomeRange: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case education, employment
+        case incomeRange = "income_range"
+    }
+}
+
+// MARK: - Available Surveys API Response
+struct AvailableSurveysResponse: Codable {
+    let surveys: [AvailableSurvey]
+    let total: Int
+    let message: String?
+}
+
+struct AvailableSurvey: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let pointsReward: Int
+    let estimatedCompletionTime: Int
+    let createdAt: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case description
+        case pointsReward = "points_reward"
+        case estimatedCompletionTime = "estimated_completion_time"
+        case createdAt = "created_at"
+    }
+    
+    var timeString: String {
+        if estimatedCompletionTime < 60 {
+            return "\(estimatedCompletionTime) min"
+        } else {
+            let hours = estimatedCompletionTime / 60
+            let minutes = estimatedCompletionTime % 60
+            return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h"
+        }
+    }
+}
+
 // MARK: - User Profile
 struct UserProfile: Codable, Identifiable {
     let id: String
@@ -18,6 +151,8 @@ struct UserProfile: Codable, Identifiable {
     let joinDate: Date
     let surveysCompleted: Int
     let totalEarned: Int
+    let totalRedeemed: Int
+    let totalScans: Int
     
     var fullName: String {
         let first = firstName ?? ""
