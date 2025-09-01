@@ -13,7 +13,7 @@ struct AppColors {
     static let primaryGreen = Color(hex: "#1ED760") // Spotify Green
     static let darkGreen = Color(hex: "#1DB954")    // Darker Spotify Green
     static let lightGreen = Color(hex: "#1ED760")   // Spotify Green
-    static let profileBlue = Color(hex: "#509BFS")  // Profile Circle Blue
+    static let profileBlue = Color(hex: "#509bf5")  // Profile Circle Blue
     
     // Background Colors
     static let background = Color.black              // Dark mode background
