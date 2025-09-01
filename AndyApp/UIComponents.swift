@@ -129,11 +129,12 @@ struct PointsCard: View {
 
 // MARK: - Survey Components
 struct SurveyCard: View {
-    let survey: Survey
+    let survey: SurveyViewItem
     let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            // Survey content
             VStack(alignment: .leading, spacing: AppSpacing.md) {
                 // Header
                 HStack {
@@ -157,22 +158,18 @@ struct SurveyCard: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 20))
                             .foregroundColor(AppColors.success)
-                    } else if !survey.isAvailable {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(AppColors.warning)
                     }
                 }
                 
                 // Footer
                 HStack {
-                    // Category pill
-                    Text(survey.category.displayName)
+                    // Status pill
+                    Text(survey.status)
                         .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.primaryGreen)
+                        .foregroundColor(survey.isCompleted ? AppColors.success : AppColors.primaryGreen)
                         .padding(.horizontal, AppSpacing.sm)
                         .padding(.vertical, AppSpacing.xs)
-                        .background(AppColors.primaryGreen.opacity(0.1))
+                        .background((survey.isCompleted ? AppColors.success : AppColors.primaryGreen).opacity(0.1))
                         .cornerRadius(AppCornerRadius.small)
                     
                     Spacer()
@@ -184,7 +181,7 @@ struct SurveyCard: View {
                                 .font(.system(size: 12))
                                 .foregroundColor(AppColors.primaryGreen)
                             
-                            Text("\(survey.pointsReward)")
+                            Text("\(survey.points)")
                                 .font(AppTypography.caption1)
                                 .foregroundColor(AppColors.textPrimary)
                         }
@@ -194,26 +191,41 @@ struct SurveyCard: View {
                                 .font(.system(size: 12))
                                 .foregroundColor(AppColors.textSecondary)
                             
-                            Text(survey.timeString)
+                            Text(survey.estimatedTime)
                                 .font(AppTypography.caption1)
                                 .foregroundColor(AppColors.textSecondary)
                         }
                     }
                 }
             }
-            .padding(AppSpacing.lg)
-            .background(AppColors.cardBackground)
-            .cornerRadius(AppCornerRadius.medium)
-            .shadow(
-                color: AppShadows.small.color,
-                radius: AppShadows.small.radius,
-                x: AppShadows.small.x,
-                y: AppShadows.small.y
-            )
+            
+            // Action button for available surveys
+            if !survey.isCompleted {
+                Button(action: action) {
+                    HStack {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14))
+                        Text("Start Survey")
+                    }
+                    .font(AppTypography.body)
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpacing.sm)
+                    .background(AppColors.primaryGreen)
+                    .cornerRadius(AppCornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
         }
-        .buttonStyle(PlainButtonStyle())
-        .disabled(!survey.isAvailable)
-        .opacity(survey.isAvailable ? 1.0 : 0.6)
+        .padding(AppSpacing.lg)
+        .background(AppColors.cardBackground)
+        .cornerRadius(AppCornerRadius.medium)
+        .shadow(
+            color: AppShadows.small.color,
+            radius: AppShadows.small.radius,
+            x: AppShadows.small.x,
+            y: AppShadows.small.y
+        )
     }
 }
 

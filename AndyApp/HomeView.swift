@@ -257,7 +257,7 @@ struct HomeView: View {
         }
     }
     
-    private var filteredSurveys: [Survey] {
+    private var filteredSurveys: [SurveyViewItem] {
         // Since we removed category filtering, just return all surveys
         return viewModel.surveys
     }
@@ -265,7 +265,7 @@ struct HomeView: View {
 
 // MARK: - Home View Model
 class HomeViewModel: ObservableObject {
-    @Published var surveys: [Survey] = []
+    @Published var surveys: [SurveyViewItem] = []
     @Published var activities: [ActivityItem] = []
     @Published var isLoading = false
     @Published var isLoadingActivity = false
@@ -295,20 +295,17 @@ class HomeViewModel: ObservableObject {
                     print("✅ Available surveys loaded: \(response.surveys.count) surveys")
                     print("📊 Total surveys available: \(response.total)")
                     
-                    // Convert AvailableSurvey to Survey format for compatibility
+                    // Convert AvailableSurvey to SurveyViewItem format for compatibility
                     self?.surveys = response.surveys.map { availableSurvey in
-                        Survey(
+                        SurveyViewItem(
                             id: availableSurvey.id,
                             title: availableSurvey.title,
                             description: availableSurvey.description,
-                            category: .general, // Default category since API doesn't provide it
-                            pointsReward: availableSurvey.pointsReward,
-                            estimatedTime: availableSurvey.estimatedCompletionTime,
-                            isCompleted: false, // Available surveys are not completed
-                            isAvailable: true,
-                            createdAt: Date(), // We'll use current date since API provides string
-                            expiresAt: nil,
-                            questions: [] // API doesn't provide questions for available surveys
+                            points: availableSurvey.pointsReward,
+                            status: "Ready",
+                            estimatedTime: availableSurvey.timeString,
+                            isCompleted: false,
+                            completedAt: nil
                         )
                     }
                 }

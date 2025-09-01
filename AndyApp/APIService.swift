@@ -370,6 +370,76 @@ class APIService: ObservableObject {
         )
         .eraseToAnyPublisher()
     }
+
+    // MARK: - Survey Endpoints
+    func fetchPanelistSurveys() -> AnyPublisher<PanelistSurveysResponse, APIError> {
+        print("🌐 Panelist Surveys API - Endpoint: /api/panelist/surveys")
+        print("🌐 Panelist Surveys API - Full URL: \(baseURL)/api/panelist/surveys")
+        return makeRequest(
+            endpoint: "/api/panelist/surveys",
+            method: .GET,
+            responseType: PanelistSurveysResponse.self
+        )
+    }
+    
+    // MARK: - Survey Taking Endpoints
+    func fetchSurveyDetails(surveyId: String) -> AnyPublisher<PanelistSurvey, APIError> {
+        print("🌐 Survey Details API - Endpoint: /api/surveys/\(surveyId)")
+        print("🌐 Survey Details API - Full URL: \(baseURL)/api/surveys/\(surveyId)")
+        return makeRequest(
+            endpoint: "/api/surveys/\(surveyId)",
+            method: .GET,
+            responseType: PanelistSurvey.self
+        )
+    }
+    
+    func fetchSurveyQuestions(surveyId: String) -> AnyPublisher<SurveyQuestionsResponse, APIError> {
+        print("🌐 Survey Questions API - Endpoint: /api/surveys/\(surveyId)/questions")
+        print("🌐 Survey Questions API - Full URL: \(baseURL)/api/surveys/\(surveyId)/questions")
+        return makeRequest(
+            endpoint: "/api/surveys/\(surveyId)/questions",
+            method: .GET,
+            responseType: SurveyQuestionsResponse.self
+        )
+    }
+    
+    func submitSurveyCompletion(_ request: SurveyCompletionRequest) -> AnyPublisher<SurveyCompletionResponse, APIError> {
+        print("🌐 Survey Completion API - Endpoint: /api/survey-completions")
+        print("🌐 Survey Completion API - Full URL: \(baseURL)/api/survey-completions")
+        print("📝 Completion data: survey_id=\(request.surveyId), points=\(request.pointsEarned), responses=\(request.responseData.count)")
+        
+        // Encode request to JSON data
+        guard let jsonData = try? JSONEncoder().encode(request) else {
+            return Fail(error: APIError.invalidResponse)
+                .eraseToAnyPublisher()
+        }
+        
+        return makeRequest(
+            endpoint: "/api/survey-completions",
+            method: .POST,
+            body: jsonData,
+            responseType: SurveyCompletionResponse.self
+        )
+    }
+    
+    func awardPoints(_ request: AwardPointsRequest) -> AnyPublisher<String, APIError> {
+        print("🌐 Award Points API - Endpoint: /api/rpc/award-points")
+        print("🌐 Award Points API - Full URL: \(baseURL)/api/rpc/award-points")
+        print("💰 Awarding \(request.pPoints) points to panelist \(request.pPanelistId)")
+        
+        // Encode request to JSON data
+        guard let jsonData = try? JSONEncoder().encode(request) else {
+            return Fail(error: APIError.invalidResponse)
+                .eraseToAnyPublisher()
+            }
+        
+        return makeRequest(
+            endpoint: "/api/rpc/award-points",
+            method: .POST,
+            body: jsonData,
+            responseType: String.self
+        )
+    }
 }
 
 // MARK: - Combine to Async Extension

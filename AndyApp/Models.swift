@@ -276,18 +276,250 @@ enum SurveyCategory: String, Codable, CaseIterable {
     }
 }
 
-struct SurveyQuestion: Codable, Identifiable {
+// MARK: - Survey Question Models
+struct SurveyQuestion: Codable {
     let id: String
-    let question: String
-    let type: QuestionType
+    let surveyId: String
+    let questionText: String
+    let questionType: String
+    let questionOrder: Int
+    let isRequired: Bool
     let options: [String]?
-    let required: Bool
+    let validationRules: [String: String]?
     
-    enum QuestionType: String, Codable {
-        case multipleChoice = "multiple_choice"
-        case text = "text"
-        case rating = "rating"
-        case yesNo = "yes_no"
+    enum CodingKeys: String, CodingKey {
+        case id
+        case surveyId = "survey_id"
+        case questionText = "question_text"
+        case questionType = "question_type"
+        case questionOrder = "question_order"
+        case isRequired = "is_required"
+        case options
+        case validationRules = "validation_rules"
+    }
+    
+    // Custom decoding to handle mixed types in validation rules
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        surveyId = try container.decode(String.self, forKey: .surveyId)
+        questionText = try container.decode(String.self, forKey: .questionText)
+        questionType = try container.decode(String.self, forKey: .questionType)
+        questionOrder = try container.decode(Int.self, forKey: .questionOrder)
+        isRequired = try container.decode(Bool.self, forKey: .isRequired)
+        options = try container.decodeIfPresent([String].self, forKey: .options)
+        
+        // Handle validation rules with mixed types
+        if let validationRulesContainer = try? container.nestedContainer(keyedBy: ValidationRuleKeys.self, forKey: .validationRules) {
+            var rules: [String: String] = [:]
+            
+            // Try to decode each validation rule as different types and convert to string
+            if let maxValue = try? validationRulesContainer.decode(Int.self, forKey: .maxValue) {
+                rules["max_value"] = "\(maxValue)"
+            }
+            if let minValue = try? validationRulesContainer.decode(Int.self, forKey: .minValue) {
+                rules["min_value"] = "\(minValue)"
+            }
+            if let maxLength = try? validationRulesContainer.decode(Int.self, forKey: .maxLength) {
+                rules["max_length"] = "\(maxLength)"
+            }
+            if let minLength = try? validationRulesContainer.decode(Int.self, forKey: .minLength) {
+                rules["min_length"] = "\(minLength)"
+            }
+            if let maxSelections = try? validationRulesContainer.decode(Int.self, forKey: .maxSelections) {
+                rules["max_selections"] = "\(maxSelections)"
+            }
+            if let minSelections = try? validationRulesContainer.decode(Int.self, forKey: .minSelections) {
+                rules["min_selections"] = "\(minSelections)"
+            }
+            
+            validationRules = rules.isEmpty ? nil : rules
+        } else {
+            validationRules = nil
+        }
+    }
+    
+    private enum ValidationRuleKeys: String, CodingKey {
+        case maxValue = "max_value"
+        case minValue = "min_value"
+        case maxLength = "max_length"
+        case minLength = "min_length"
+        case maxSelections = "max_selections"
+        case minSelections = "min_selections"
+    }
+    
+    // Helper computed properties for UI
+    var displayType: QuestionDisplayType {
+        switch questionType {
+        case "rating":
+            return .rating
+        case "yes_no":
+            return .yesNo
+        case "multiple_choice":
+            return .multipleChoice
+        case "checkbox":
+            return .checkbox
+        case "text":
+            return .text
+        default:
+            return .text
+        }
+    }
+}
+
+struct SurveyQuestionsResponse: Codable {
+    let questions: [SurveyQuestion]
+}
+
+// MARK: - Survey Response Models
+struct SurveyCompletionRequest: Codable {
+    let surveyId: String
+    let panelistId: String
+    let pointsEarned: Int
+    let responseData: [String: String]
+    
+    enum CodingKeys: String, CodingKey {
+        case surveyId = "survey_id"
+        case panelistId = "panelist_id"
+        case pointsEarned = "points_earned"
+        case responseData = "response_data"
+    }
+}
+
+struct SurveyCompletionResponse: Codable {
+    let id: String
+    let surveyId: String
+    let panelistId: String
+    let pointsEarned: Int
+    let responseData: [String: String]
+    let createdAt: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case surveyId = "survey_id"
+        case panelistId = "panelist_id"
+        case pointsEarned = "points_earned"
+        case responseData = "response_data"
+        case createdAt = "created_at"
+    }
+}
+
+struct AwardPointsRequest: Codable {
+    let pPanelistId: String
+    let pPoints: Int
+    let pTransactionType: String
+    let pTitle: String
+    let pDescription: String
+    let pMetadata: [String: String] // Changed from [String: Any] to [String: String]
+    let pAwardedBy: String?
+    let pEffectiveDate: String
+    
+    enum CodingKeys: String, CodingKey {
+        case pPanelistId = "p_panelist_id"
+        case pPoints = "p_points"
+        case pTransactionType = "p_transaction_type"
+        case pTitle = "p_title"
+        case pDescription = "p_description"
+        case pMetadata = "p_metadata"
+        case pAwardedBy = "p_awarded_by"
+        case pEffectiveDate = "p_effective_date"
+    }
+}
+
+// MARK: - Question Display Types
+enum QuestionDisplayType {
+    case rating
+    case yesNo
+    case multipleChoice
+    case checkbox
+    case text
+}
+
+// MARK: - Survey Taking State
+class SurveyTakingState: ObservableObject {
+    @Published var currentQuestionIndex = 0
+    @Published var responses: [String: String] = [:]
+    @Published var isLoading = false
+    @Published var error: String?
+    @Published var shouldSubmitSurvey = false
+    
+    var currentQuestion: SurveyQuestion?
+    var questions: [SurveyQuestion] = []
+    var survey: SurveyViewItem?
+    
+    var canGoPrevious: Bool {
+        return currentQuestionIndex > 0
+    }
+    
+    var canGoNext: Bool {
+        guard let question = currentQuestion else { return false }
+        return hasValidResponse(for: question)
+    }
+    
+    var isLastQuestion: Bool {
+        return currentQuestionIndex == questions.count - 1
+    }
+    
+    var progressText: String {
+        return "Question \(currentQuestionIndex + 1) of \(questions.count)"
+    }
+    
+    func setSurvey(_ survey: SurveyViewItem) {
+        self.survey = survey
+        self.currentQuestionIndex = 0
+        self.responses.removeAll()
+        self.shouldSubmitSurvey = false
+    }
+    
+    func setQuestions(_ questions: [SurveyQuestion]) {
+        self.questions = questions.sorted { $0.questionOrder < $1.questionOrder }
+        self.currentQuestionIndex = 0
+        self.updateCurrentQuestion()
+    }
+    
+    func updateCurrentQuestion() {
+        guard currentQuestionIndex < questions.count else { return }
+        currentQuestion = questions[currentQuestionIndex]
+    }
+    
+    func goToNextQuestion() {
+        guard canGoNext else { return }
+        if isLastQuestion {
+            // Submit survey
+            submitSurvey()
+        } else {
+            currentQuestionIndex += 1
+            updateCurrentQuestion()
+        }
+    }
+    
+    func goToPreviousQuestion() {
+        guard canGoPrevious else { return }
+        currentQuestionIndex -= 1
+        updateCurrentQuestion()
+    }
+    
+    func setResponse(for questionId: String, value: String) {
+        responses[questionId] = value
+    }
+    
+    func getResponse(for questionId: String) -> String? {
+        return responses[questionId]
+    }
+    
+    func hasValidResponse(for question: SurveyQuestion) -> Bool {
+        guard question.isRequired else { return true }
+        
+        if let response = responses[question.id] {
+            return !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return false
+    }
+    
+    private func submitSurvey() {
+        print("🚀 Submitting survey with \(responses.count) responses")
+        shouldSubmitSurvey = true
     }
 }
 
@@ -430,5 +662,60 @@ struct SurveyResponse: Codable {
 struct QuestionAnswer: Codable {
     let questionId: String
     let answer: String
-    let questionType: SurveyQuestion.QuestionType
+    let questionType: String // Changed from SurveyQuestion.QuestionType to String
+}
+
+// MARK: - Survey Models
+struct PanelistSurvey: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let pointsReward: Int
+    let estimatedCompletionTime: Int
+    let status: String
+    let createdAt: String
+    let updatedAt: String
+    let isCompleted: Bool
+    let completedAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case description
+        case pointsReward = "points_reward"
+        case estimatedCompletionTime = "estimated_completion_time"
+        case status
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case isCompleted = "is_completed"
+        case completedAt = "completed_at"
+    }
+}
+
+struct PanelistSurveysResponse: Codable {
+    let surveys: [PanelistSurvey]
+}
+
+struct SurveyViewItem: Identifiable {
+    let id: String
+    let title: String
+    let description: String
+    let points: Int
+    let status: String
+    let estimatedTime: String
+    let isCompleted: Bool
+    let completedAt: String?
+    
+    static func fromPanelistSurvey(_ survey: PanelistSurvey) -> SurveyViewItem {
+        return SurveyViewItem(
+            id: survey.id,
+            title: survey.title,
+            description: survey.description,
+            points: survey.pointsReward,
+            status: survey.isCompleted ? "Completed" : "Ready",
+            estimatedTime: "\(survey.estimatedCompletionTime) minutes",
+            isCompleted: survey.isCompleted,
+            completedAt: survey.completedAt
+        )
+    }
 }

@@ -41,7 +41,7 @@ struct MainTabView: View {
                         }
                         .tag(0)
                     
-                    SurveyView()
+                    SurveyView(selectedFilter: $selectedFilter)
                         .tabItem {
                             Image(systemName: "doc.text.fill")
                             Text("Survey")
@@ -97,7 +97,7 @@ struct MainTabView: View {
     private var filterCategories: [String] {
         switch selectedTab {
         case 0: return ["Technology", "Health", "Finance", "Entertainment", "Lifestyle"]
-        case 1: return ["Technology", "Health", "Finance", "Entertainment", "Education", "Lifestyle"]
+        case 1: return ["Available", "Completed"] // Survey-specific filters
         case 2: return ["Important", "Unread", "System", "Updates"]
         case 3: return ["Gift Cards", "Merchandise", "Donations", "Experiences"]
         default: return []
