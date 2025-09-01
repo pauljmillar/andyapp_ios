@@ -724,3 +724,106 @@ struct SurveyViewItem: Identifiable {
         )
     }
 }
+
+// MARK: - Redemption Models
+struct Offer: Codable, Identifiable {
+    let id: String
+    let title: String
+    let description: String
+    let pointsRequired: Int
+    let merchantName: String
+    let offerDetails: OfferDetails
+    let isActive: Bool
+    let createdAt: String
+    let updatedAt: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case description
+        case pointsRequired = "points_required"
+        case merchantName = "merchant_name"
+        case offerDetails = "offer_details"
+        case isActive = "is_active"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+struct OfferDetails: Codable {
+    let giftCardValue: Int?
+    let currency: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case giftCardValue = "gift_card_value"
+        case currency
+    }
+}
+
+struct OffersResponse: Codable {
+    let offers: [Offer]
+    let total: Int
+}
+
+struct Redemption: Codable, Identifiable {
+    let id: String
+    let pointsSpent: Int
+    let status: String
+    let redemptionDate: String
+    let createdAt: String
+    let merchantOffers: MerchantOffer
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case pointsSpent = "points_spent"
+        case status
+        case redemptionDate = "redemption_date"
+        case createdAt = "created_at"
+        case merchantOffers = "merchant_offers"
+    }
+}
+
+struct MerchantOffer: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let merchantName: String
+    let offerDetails: OfferDetails
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case description
+        case merchantName = "merchant_name"
+        case offerDetails = "offer_details"
+    }
+}
+
+struct RedemptionsResponse: Codable {
+    let redemptions: [Redemption]
+    let total: Int
+}
+
+struct RedemptionRequest: Codable {
+    let offerId: String
+    
+    enum CodingKeys: String, CodingKey {
+        case offerId = "offer_id"
+    }
+}
+
+struct RedemptionResponse: Codable {
+    let success: Bool
+    let redemptionId: String
+    let pointsSpent: Int
+    let newBalance: Int
+    let totalRedeemed: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case redemptionId = "redemption_id"
+        case pointsSpent = "points_spent"
+        case newBalance = "new_balance"
+        case totalRedeemed = "total_redeemed"
+    }
+}

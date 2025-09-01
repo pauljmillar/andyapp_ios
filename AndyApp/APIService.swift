@@ -316,50 +316,73 @@ class APIService: ObservableObject {
     }
     
     // MARK: - Redemption Endpoints
-    func getRedemptionOptions(category: RedemptionOption.RedemptionCategory? = nil) -> AnyPublisher<[RedemptionOption], APIError> {
-        var endpoint = "/api/redeem/options"
-        if let category = category {
-            endpoint += "?category=\(category.rawValue)"
+    func getAvailableOffers(
+        active: Bool? = true,
+        minPoints: Int? = nil,
+        maxPoints: Int? = nil,
+        limit: Int = 20,
+        offset: Int = 0
+    ) -> AnyPublisher<OffersResponse, APIError> {
+        var endpoint = "/api/offers?limit=\(limit)&offset=\(offset)"
+        
+        if let active = active {
+            endpoint += "&active=\(active)"
         }
+        if let minPoints = minPoints {
+            endpoint += "&min_points=\(minPoints)"
+        }
+        if let maxPoints = maxPoints {
+            endpoint += "&max_points=\(maxPoints)"
+        }
+        
+        print("🌐 Available Offers API - Endpoint: \(endpoint)")
+        print("🌐 Available Offers API - Full URL: \(baseURL)\(endpoint)")
         
         return makeRequest(
             endpoint: endpoint,
-            responseType: APIResponse<[RedemptionOption]>.self
+            responseType: OffersResponse.self
         )
-        .tryMap { response in
-            guard response.success, let data = response.data else {
-                throw APIError.serverError(400)
-            }
-            return data
-        }
-        .mapError { error in
-            if let apiError = error as? APIError {
-                return apiError
-            }
-            return APIError.decodingError(error)
-        }
-        .eraseToAnyPublisher()
     }
     
-    func redeemPoints(optionId: String) -> AnyPublisher<PointsTransaction, APIError> {
+    func getRedemptionHistory(
+        status: String? = nil,
+        limit: Int = 10,
+        offset: Int = 0
+    ) -> AnyPublisher<RedemptionsResponse, APIError> {
+        var endpoint = "/api/redemptions?limit=\(limit)&offset=\(offset)"
+        
+        if let status = status {
+            endpoint += "&status=\(status)"
+        }
+        
+        print("🌐 Redemption History API - Endpoint: \(endpoint)")
+        print("🌐 Redemption History API - Full URL: \(baseURL)\(endpoint)")
+        
         return makeRequest(
-            endpoint: "/api/redeem/\(optionId)",
-            method: .POST,
-            responseType: APIResponse<PointsTransaction>.self
+            endpoint: endpoint,
+            responseType: RedemptionsResponse.self
         )
-        .tryMap { response in
-            guard response.success, let data = response.data else {
-                throw APIError.serverError(400)
-            }
-            return data
+    }
+    
+    func redeemPoints(offerId: String) -> AnyPublisher<RedemptionResponse, APIError> {
+        print("🌐 Redeem Points API - Endpoint: /api/redemptions")
+        print("🌐 Redeem Points API - Full URL: \(baseURL)/api/redemptions")
+        print("🎁 Redeeming points for offer ID: \(offerId)")
+        
+        let request = RedemptionRequest(offerId: offerId)
+        
+        // Encode request to JSON data
+        guard let jsonData = try? JSONEncoder().encode(request) else {
+            return Fail(error: APIError.invalidResponse)
+                .eraseToAnyPublisher()
         }
-        .mapError { error in
-            if let apiError = error as? APIError {
-                return apiError
-            }
-            return APIError.decodingError(error)
-        }
-        .eraseToAnyPublisher()
+        
+        return makeRequest(
+            endpoint: "/api/redemptions",
+            method: .POST,
+            body: jsonData,
+            responseType: RedemptionResponse.self
+        )
     }
     
     // MARK: - Activity Endpoints
