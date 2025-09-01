@@ -114,6 +114,32 @@ struct HomeView: View {
                     .padding(.horizontal, AppSpacing.lg)
                 }
                 
+                // Earn points section
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    Text("Earn points")
+                        .font(AppTypography.title2)
+                        .foregroundColor(AppColors.textPrimary)
+                        .padding(.horizontal, AppSpacing.lg)
+                    
+                    Button(action: {
+                        // Navigate to Mail view
+                        // TODO: Implement navigation to Mail tab
+                    }) {
+                        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                            Text("Earn more points today by scanning your junk mail now!")
+                                .font(AppTypography.body)
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(AppSpacing.lg)
+                        .background(Color(hex: "#509bf5"))
+                        .cornerRadius(AppCornerRadius.medium)
+                        .padding(.horizontal, AppSpacing.lg)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
                 // Available surveys section
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
                     HStack {
@@ -197,7 +223,7 @@ struct HomeView: View {
                         .frame(height: 150)
                     } else {
                         LazyVStack(spacing: AppSpacing.sm) {
-                            ForEach(Array(viewModel.activities.prefix(3))) { activity in
+                            ForEach(viewModel.activities) { activity in
                                 ActivityItemView(activity: activity)
                                     .padding(.horizontal, AppSpacing.lg)
                             }
@@ -295,6 +321,7 @@ class HomeViewModel: ObservableObject {
         
         print("🔄 Loading point ledger from API...")
         print("🔑 Current auth token: \(apiService.currentAuthToken ?? "No token")")
+        print("🔑 Auth token length: \(apiService.currentAuthToken?.count ?? 0)")
         
         apiService.fetchPointLedger(limit: 10, offset: 0)
             .receive(on: DispatchQueue.main)
@@ -303,22 +330,43 @@ class HomeViewModel: ObservableObject {
                     self?.isLoadingActivity = false
                     if case .failure(let error) = completion {
                         print("❌ Error loading point ledger: \(error)")
+                        print("❌ Error type: \(type(of: error))")
+                        print("❌ Error description: \(error.localizedDescription)")
                         // Don't show error for activity loading, just keep empty
                     }
                 },
                 receiveValue: { [weak self] response in
                     print("✅ Point ledger loaded: \(response.ledgerEntries.count) entries")
                     print("📊 Total ledger entries: \(response.pagination.total)")
+                    print("📊 Pagination info: limit=\(response.pagination.limit), offset=\(response.pagination.offset), hasMore=\(response.pagination.hasMore)")
+                    
+                    // Log first few entries for debugging
+                    for (index, entry) in response.ledgerEntries.prefix(3).enumerated() {
+                        print("📝 Entry \(index + 1): \(entry.title) - \(entry.formattedPoints) (\(entry.transactionType))")
+                    }
                     
                     // Convert LedgerEntry to ActivityItem for compatibility
                     self?.activities = response.ledgerEntries.map { ledgerEntry in
-                        ActivityItem(
+                        // Parse the created_at date string
+                        let dateFormatter = ISO8601DateFormatter()
+                        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                        
+                        let createdAtDate: Date
+                        if let parsedDate = dateFormatter.date(from: ledgerEntry.createdAt) {
+                            createdAtDate = parsedDate
+                        } else {
+                            // Fallback to standard ISO8601 format
+                            let fallbackFormatter = ISO8601DateFormatter()
+                            createdAtDate = fallbackFormatter.date(from: ledgerEntry.createdAt) ?? Date()
+                        }
+                        
+                        return ActivityItem(
                             id: UUID().uuidString, // Generate unique ID since ledger doesn't provide one
                             type: self?.getActivityType(from: ledgerEntry.transactionType) ?? .pointsEarned,
                             title: ledgerEntry.title,
                             description: ledgerEntry.description ?? "",
                             points: ledgerEntry.points,
-                            createdAt: Date(), // We'll use current date since API provides string
+                            createdAt: createdAtDate, // Use parsed date from API
                             metadata: [
                                 "transactionType": ledgerEntry.transactionType,
                                 "formattedPoints": ledgerEntry.formattedPoints,
