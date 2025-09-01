@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var authManager = ClerkAuthManager.shared
     @State private var selectedTab = 0
     @State private var showingProfileMenu = false
     @State private var selectedFilter: String?
@@ -108,7 +108,7 @@ struct MainTabView: View {
 // MARK: - Profile Menu View
 struct ProfileMenuView: View {
     @Binding var isShowing: Bool
-    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var authManager = ClerkAuthManager.shared
     
     var body: some View {
         ZStack {
@@ -222,7 +222,9 @@ struct ProfileMenuView: View {
                             icon: "rectangle.portrait.and.arrow.right",
                             title: "Sign Out",
                             action: {
-                                authManager.signOut()
+                                Task {
+                                    await authManager.signOut()
+                                }
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     isShowing = false
                                 }

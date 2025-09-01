@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct AndyAppApp: App {
-    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var authManager = ClerkAuthManager.shared
     
     var body: some Scene {
         WindowGroup {
@@ -17,7 +17,7 @@ struct AndyAppApp: App {
                 if authManager.isAuthenticated {
                     MainTabView()
                 } else {
-                    SignInView()
+                    ClerkSignInView()
                 }
             }
             .environmentObject(authManager)

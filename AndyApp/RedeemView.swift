@@ -9,7 +9,7 @@ import SwiftUI
 import Combine
 
 struct RedeemView: View {
-    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var authManager = ClerkAuthManager.shared
     @StateObject private var viewModel = RedeemViewModel()
     @State private var selectedCategory: RedemptionOption.RedemptionCategory?
     @State private var searchText = ""
@@ -327,7 +327,7 @@ struct RedemptionOptionCard: View {
 struct RedemptionDetailView: View {
     let option: RedemptionOption
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var authManager = ClerkAuthManager.shared
     @StateObject private var viewModel = RedeemViewModel()
     
     var body: some View {

@@ -9,7 +9,7 @@ import SwiftUI
 import Combine
 
 struct HomeView: View {
-    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var authManager = ClerkAuthManager.shared
     @StateObject private var viewModel = HomeViewModel()
     @State private var selectedCategory: String?
     
