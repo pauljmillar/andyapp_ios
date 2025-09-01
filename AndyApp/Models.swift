@@ -827,3 +827,104 @@ struct RedemptionResponse: Codable {
         case totalRedeemed = "total_redeemed"
     }
 }
+
+// MARK: - Mail Package Models
+struct MailPackage: Codable, Identifiable {
+    let id: String
+    let timestamp: String
+    let createdAt: Date
+    let scanCount: Int
+    let thumbnailPath: String?
+    var status: MailPackageStatus
+    var analysis: MailAnalysis?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case timestamp
+        case createdAt = "created_at"
+        case scanCount = "scan_count"
+        case thumbnailPath = "thumbnail_path"
+        case status
+        case analysis
+    }
+    
+    init(id: String, timestamp: String, createdAt: Date, scanCount: Int, thumbnailPath: String? = nil, status: MailPackageStatus = .processing, analysis: MailAnalysis? = nil) {
+        self.id = id
+        self.timestamp = timestamp
+        self.createdAt = createdAt
+        self.scanCount = scanCount
+        self.thumbnailPath = thumbnailPath
+        self.status = status
+        self.analysis = analysis
+    }
+}
+
+struct MailScan: Codable, Identifiable {
+    let id: String
+    let mailPackageId: String
+    let imagePath: String
+    let scanNumber: Int
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case mailPackageId = "mail_package_id"
+        case imagePath = "image_path"
+        case scanNumber = "scan_number"
+        case createdAt = "created_at"
+    }
+}
+
+enum MailPackageStatus: String, Codable, CaseIterable {
+    case processing = "processing"
+    case completed = "completed"
+    case failed = "failed"
+    
+    var displayName: String {
+        switch self {
+        case .processing: return "Processing..."
+        case .completed: return "Completed"
+        case .failed: return "Failed"
+        }
+    }
+    
+    var color: String {
+        switch self {
+        case .processing: return "#FFA500" // Orange
+        case .completed: return "#4CAF50" // Green
+        case .failed: return "#F44336"    // Red
+        }
+    }
+}
+
+struct MailAnalysis: Codable {
+    let companyName: String
+    let industry: String
+    let offerDescription: String
+    let recipientGuess: String
+    let confidence: Double?
+    let processingDate: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case companyName = "company_name"
+        case industry
+        case offerDescription = "offer_description"
+        case recipientGuess = "recipient_guess"
+        case confidence
+        case processingDate = "processing_date"
+    }
+}
+
+struct MailAnalysisRequest: Codable {
+    let mailPackageId: String
+    let ocrText: String
+    let imageCount: Int
+    let timestamp: String
+}
+
+struct MailAnalysisResponse: Codable {
+    let success: Bool
+    let analysis: MailAnalysis?
+    let message: String?
+    let error: String?
+}

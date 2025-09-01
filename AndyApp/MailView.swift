@@ -10,319 +10,151 @@ import Combine
 
 struct MailView: View {
     @StateObject private var viewModel = MailViewModel()
-    @State private var searchText = ""
-    @State private var showingUnreadOnly = false
+    @State private var showingCamera = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Filter toggle
-            HStack {
-                Toggle("Unread Only", isOn: $showingUnreadOnly)
-                    .font(AppTypography.body)
-                    .foregroundColor(AppColors.textPrimary)
-                
-                Spacer()
-                
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
-                        .scaleEffect(0.8)
+        ZStack {
+            VStack(spacing: 0) {
+                // Mail packages list
+                if viewModel.isLoading && viewModel.mailPackages.isEmpty {
+                    LoadingView(message: "Loading mail...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.mailPackages.isEmpty {
+                    EmptyStateView(
+                        icon: "mail",
+                        title: "No Mail Scanned",
+                        message: "Tap the camera button to scan your first mail package.",
+                        actionTitle: "Scan Mail",
+                        action: {
+                            showingCamera = true
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: AppSpacing.md) {
+                            ForEach(viewModel.mailPackages) { mailPackage in
+                                MailPackageCard(mailPackage: mailPackage) {
+                                    viewModel.selectMailPackage(mailPackage)
+                                }
+                            }
+                        }
+                        .padding(AppSpacing.lg)
+                    }
                 }
             }
-            .padding(.horizontal, AppSpacing.lg)
-            .padding(.vertical, AppSpacing.md)
             .background(AppColors.background)
             
-            // Message list
-            if viewModel.isLoading && viewModel.messages.isEmpty {
-                LoadingView(message: "Loading messages...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = viewModel.error {
-                ErrorView(message: error) {
-                    viewModel.loadMessages()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if filteredMessages.isEmpty {
-                EmptyStateView(
-                    icon: "envelope",
-                    title: searchText.isEmpty ? "No Messages" : "No Results Found",
-                    message: searchText.isEmpty ? 
-                        "You're all caught up! Check back later for new messages." :
-                        "Try adjusting your search or filters.",
-                    actionTitle: "Refresh",
-                    action: {
-                        viewModel.loadMessages()
+            // Floating Action Button (FAB)
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        showingCamera = true
+                    }) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .frame(width: 56, height: 56)
+                            .background(AppColors.primaryGreen)
+                            .clipShape(Circle())
+                            .shadow(
+                                color: AppColors.primaryGreen.opacity(0.3),
+                                radius: 8,
+                                x: 0,
+                                y: 4
+                            )
                     }
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: AppSpacing.sm) {
-                        ForEach(filteredMessages) { message in
-                            MessageCard(message: message) {
-                                viewModel.selectMessage(message)
-                            }
-                            .padding(.horizontal, AppSpacing.lg)
-                        }
-                        
-                        // Load more button
-                        if viewModel.hasMoreMessages && !viewModel.isLoading {
-                            Button("Load More") {
-                                viewModel.loadMoreMessages()
-                            }
-                            .buttonStyle(SecondaryButtonStyle())
-                            .padding(.horizontal, AppSpacing.lg)
-                            .padding(.vertical, AppSpacing.md)
-                        }
-                    }
-                    .padding(.vertical, AppSpacing.md)
+                    .padding(.trailing, AppSpacing.lg)
+                    .padding(.bottom, 80) // Above bottom tab bar
                 }
             }
         }
-        .background(AppColors.background)
         .onAppear {
-            viewModel.loadMessages()
+            viewModel.loadMailPackages()
         }
-        .refreshable {
-            viewModel.loadMessages()
-        }
-        .sheet(item: $viewModel.selectedMessage) { message in
-            MessageDetailView(message: message)
-        }
-    }
-    
-    private var filteredMessages: [MailMessage] {
-        var messages = viewModel.messages
-        
-        // Filter by read status
-        if showingUnreadOnly {
-            messages = messages.filter { !$0.isRead }
-        }
-        
-        // Filter by search text
-        if !searchText.isEmpty {
-            messages = messages.filter { message in
-                message.subject.localizedCaseInsensitiveContains(searchText) ||
-                message.body.localizedCaseInsensitiveContains(searchText) ||
-                message.sender.localizedCaseInsensitiveContains(searchText)
+        .sheet(isPresented: $showingCamera) {
+            CameraView { images in
+                viewModel.createMailPackage(with: images)
             }
         }
-        
-        return messages
-    }
-}
-
-// MARK: - Mail View Model
-class MailViewModel: ObservableObject {
-    @Published var messages: [MailMessage] = []
-    @Published var selectedMessage: MailMessage?
-    @Published var isLoading = false
-    @Published var error: String?
-    @Published var hasMoreMessages = true
-    
-    private let apiService = APIService.shared
-    private var cancellables = Set<AnyCancellable>()
-    private var currentPage = 1
-    
-    func loadMessages() {
-        isLoading = true
-        error = nil
-        currentPage = 1
-        messages = []
-        
-        // TEMPORARY: Use mock data for development
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.isLoading = false
-            self.messages = [
-                MailMessage(
-                    id: "1",
-                    subject: "Welcome to Survey Rewards!",
-                    body: "Thank you for joining our community. Start completing surveys to earn points and redeem them for amazing rewards.",
-                    isRead: false,
-                    isImportant: true,
-                    sender: "Survey Rewards Team",
-                    createdAt: Date().addingTimeInterval(-3600),
-                    attachments: nil
-                ),
-                MailMessage(
-                    id: "2",
-                    subject: "New Survey Available",
-                    body: "We have a new technology survey available that matches your profile. Complete it to earn 150 points!",
-                    isRead: false,
-                    isImportant: false,
-                    sender: "Survey System",
-                    createdAt: Date().addingTimeInterval(-7200),
-                    attachments: nil
-                ),
-                MailMessage(
-                    id: "3",
-                    subject: "Points Redeemed Successfully",
-                    body: "Your Amazon gift card has been processed and will be delivered to your email within 24 hours.",
-                    isRead: true,
-                    isImportant: false,
-                    sender: "Rewards System",
-                    createdAt: Date().addingTimeInterval(-86400),
-                    attachments: [
-                        MailAttachment(id: "1", name: "receipt.pdf", url: "", size: 1024, type: "pdf")
-                    ]
-                ),
-                MailMessage(
-                    id: "4",
-                    subject: "Weekly Summary",
-                    body: "This week you completed 3 surveys and earned 425 points. Great job!",
-                    isRead: true,
-                    isImportant: false,
-                    sender: "Survey Rewards Team",
-                    createdAt: Date().addingTimeInterval(-172800),
-                    attachments: nil
-                )
-            ]
-            self.hasMoreMessages = false
+        .sheet(item: $viewModel.selectedMailPackage) { mailPackage in
+            MailPackageDetailView(mailPackage: mailPackage)
         }
-        
-        // Uncomment for real API calls:
-        /*
-        apiService.getMailMessages(page: currentPage, limit: 20)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        self?.error = error.localizedDescription
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.messages = response.data
-                    self?.hasMoreMessages = response.pagination.hasNext
-                }
-            )
-            .store(in: &cancellables)
-        */
-    }
-    
-    func loadMoreMessages() {
-        guard !isLoading && hasMoreMessages else { return }
-        
-        isLoading = true
-        currentPage += 1
-        
-        apiService.getMailMessages(page: currentPage, limit: 20)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure = completion {
-                        self?.currentPage -= 1
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.messages.append(contentsOf: response.data)
-                    self?.hasMoreMessages = response.pagination.hasNext
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
-    func selectMessage(_ message: MailMessage) {
-        selectedMessage = message
-        markAsRead(message)
-    }
-    
-    private func markAsRead(_ message: MailMessage) {
-        guard !message.isRead else { return }
-        
-        apiService.markMessageAsRead(id: message.id)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { _ in },
-                receiveValue: { [weak self] updatedMessage in
-                    // Update the message in the list
-                    if let index = self?.messages.firstIndex(where: { $0.id == message.id }) {
-                        self?.messages[index] = updatedMessage
-                    }
-                }
-            )
-            .store(in: &cancellables)
     }
 }
 
-// MARK: - Message Card Component
-struct MessageCard: View {
-    let message: MailMessage
-    let action: () -> Void
+// MARK: - Mail Package Card
+struct MailPackageCard: View {
+    let mailPackage: MailPackage
+    let onTap: () -> Void
     
     var body: some View {
-        Button(action: action) {
+        Button(action: onTap) {
             HStack(spacing: AppSpacing.md) {
-                // Avatar
-                Circle()
-                    .fill(AppColors.primaryGreen)
-                    .frame(width: 40, height: 40)
+                // Circular thumbnail
+                if let thumbnailPath = mailPackage.thumbnailPath {
+                    AsyncImage(url: URL(string: thumbnailPath)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Image(systemName: "doc.text.image")
+                            .font(.system(size: 24))
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    .frame(width: 60, height: 60)
+                    .clipShape(Circle())
                     .overlay(
-                        Text(message.sender.prefix(1).uppercased())
-                            .font(AppTypography.headline)
-                            .foregroundColor(.white)
+                        Circle()
+                            .stroke(AppColors.primaryGreen.opacity(0.3), lineWidth: 2)
                     )
+                } else {
+                    // Default placeholder
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(AppColors.primaryGreen.opacity(0.1))
+                        .frame(width: 60, height: 60)
+                        .overlay(
+                            Image(systemName: "doc.text.image")
+                                .font(.system(size: 24))
+                                .foregroundColor(AppColors.primaryGreen)
+                        )
+                }
                 
                 // Content
-                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
                     HStack {
-                        Text(message.subject)
+                        Text(mailPackage.timestamp)
                             .font(AppTypography.headline)
                             .foregroundColor(AppColors.textPrimary)
                             .lineLimit(1)
                         
                         Spacer()
                         
-                        // Important indicator
-                        if message.isImportant {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(AppColors.warning)
-                        }
-                        
-                        // Unread indicator
-                        if !message.isRead {
-                            Circle()
-                                .fill(AppColors.primaryGreen)
-                                .frame(width: 8, height: 8)
-                        }
+                        // Scan count badge
+                        Text("\(mailPackage.scanCount) scan\(mailPackage.scanCount == 1 ? "" : "s")")
+                            .font(AppTypography.caption1)
+                            .foregroundColor(AppColors.primaryGreen)
+                            .padding(.horizontal, AppSpacing.sm)
+                            .padding(.vertical, AppSpacing.xs)
+                            .background(AppColors.primaryGreen.opacity(0.1))
+                            .cornerRadius(AppCornerRadius.small)
                     }
                     
-                    Text(message.sender)
-                        .font(AppTypography.footnote)
+                    Text(formatDate(mailPackage.createdAt))
+                        .font(AppTypography.caption1)
                         .foregroundColor(AppColors.textSecondary)
-                        .lineLimit(1)
-                    
-                    Text(message.body)
-                        .font(AppTypography.footnote)
-                        .foregroundColor(AppColors.textSecondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
-                    HStack {
-                        Text(timeAgo)
-                            .font(AppTypography.caption2)
-                            .foregroundColor(AppColors.textSecondary)
-                        
-                        Spacer()
-                        
-                        // Attachment indicator
-                        if let attachments = message.attachments, !attachments.isEmpty {
-                            HStack(spacing: AppSpacing.xs) {
-                                Image(systemName: "paperclip")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(AppColors.textSecondary)
-                                
-                                Text("\(attachments.count)")
-                                    .font(AppTypography.caption2)
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                        }
-                    }
                 }
+                
+                Spacer()
+                
+                // Chevron
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(AppColors.textSecondary)
             }
-            .padding(AppSpacing.md)
+            .padding(AppSpacing.lg)
             .background(AppColors.cardBackground)
             .cornerRadius(AppCornerRadius.medium)
             .shadow(
@@ -333,119 +165,242 @@ struct MessageCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-        .opacity(message.isRead ? 0.8 : 1.0)
     }
     
-    private var timeAgo: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: message.createdAt, relativeTo: Date())
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 
-// MARK: - Message Detail View
-struct MessageDetailView: View {
-    let message: MailMessage
+// MARK: - Mail View Model
+class MailViewModel: ObservableObject {
+    @Published var mailPackages: [MailPackage] = []
+    @Published var selectedMailPackage: MailPackage?
+    @Published var isLoading = false
+    @Published var error: String?
+    
+    private let apiService = APIService.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        loadMailPackages()
+    }
+    
+    func loadMailPackages() {
+        isLoading = true
+        error = nil
+        
+        // Load from local storage on main actor
+        Task { @MainActor in
+            let localPackages = LocalStorageManager.shared.getMailPackages()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.isLoading = false
+                self?.mailPackages = localPackages
+            }
+        }
+    }
+    
+    func selectMailPackage(_ mailPackage: MailPackage) {
+        selectedMailPackage = mailPackage
+    }
+    
+    func createMailPackage(with images: [UIImage]) {
+        guard !images.isEmpty else { return }
+        
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let mailPackageId = UUID().uuidString
+        
+        // Save images to local storage on main actor
+        Task { @MainActor in
+            let savedPaths = LocalStorageManager.shared.saveMailScans(
+                images: images,
+                mailPackageId: mailPackageId,
+                timestamp: timestamp
+            )
+            
+            // Create mail package
+            let mailPackage = MailPackage(
+                id: mailPackageId,
+                timestamp: timestamp,
+                createdAt: Date(),
+                scanCount: images.count,
+                thumbnailPath: savedPaths.first
+            )
+            
+            // Save to local storage
+            LocalStorageManager.shared.saveMailPackage(mailPackage)
+            
+            // Refresh the list
+            await MainActor.run {
+                loadMailPackages()
+            }
+        }
+    }
+}
+
+// MARK: - Camera View
+struct CameraView: View {
+    let onImagesCaptured: ([UIImage]) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingImagePicker = false
+    @State private var showingPhotoLibrary = false
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: AppSpacing.xl) {
+                // Camera placeholder
+                VStack(spacing: AppSpacing.lg) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 80))
+                        .foregroundColor(AppColors.primaryGreen)
+                    
+                    Text("Document Scanner")
+                        .font(AppTypography.largeTitle)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("Take photos of ads and offers from your mail")
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppSpacing.lg)
+                }
+                
+                // Simulator testing info
+                #if targetEnvironment(simulator)
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.orange)
+                        Text("Simulator Mode")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.orange)
+                    }
+                    
+                    Text("Camera will use photo library in simulator")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.horizontal, AppSpacing.lg)
+                #endif
+                
+                Spacer()
+                
+                // Action buttons
+                VStack(spacing: AppSpacing.md) {
+                    Button("Take Photos") {
+                        showingImagePicker = true
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    
+                    Button("Choose from Library") {
+                        showingPhotoLibrary = true
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    
+                    #if targetEnvironment(simulator)
+                    Button("Create Sample Images") {
+                        print("🚀 Starting sample image creation...")
+                        let sampleImages = TestDataHelper.shared.createSampleImages()
+                        print("📸 Sample images created, calling onImagesCaptured with \(sampleImages.count) images")
+                        onImagesCaptured(sampleImages)
+                        dismiss()
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    .foregroundColor(.orange)
+                    #endif
+                    
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, AppSpacing.lg)
+            }
+            .padding(AppSpacing.xl)
+            .background(AppColors.background)
+            .navigationTitle("Scan Mail")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingImagePicker) {
+                ImagePicker(images: [], onImagesSelected: { images in
+                    onImagesCaptured(images)
+                    dismiss()
+                })
+            }
+            .sheet(isPresented: $showingPhotoLibrary) {
+                ImagePicker(images: [], onImagesSelected: { images in
+                    onImagesCaptured(images)
+                    dismiss()
+                })
+            }
+        }
+    }
+}
+
+// MARK: - Mail Package Detail View
+struct MailPackageDetailView: View {
+    let mailPackage: MailPackage
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.lg) {
-                    // Message header
+                    // Header
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        HStack {
-                            // Avatar
-                            Circle()
-                                .fill(AppColors.primaryGreen)
-                                .frame(width: 50, height: 50)
-                                .overlay(
-                                    Text(message.sender.prefix(1).uppercased())
-                                        .font(AppTypography.title3)
-                                        .foregroundColor(.white)
-                                )
-                            
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text(message.sender)
-                                    .font(AppTypography.headline)
-                                    .foregroundColor(AppColors.textPrimary)
-                                
-                                Text(timeAgo)
-                                    .font(AppTypography.footnote)
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                            
-                            Spacer()
-                            
-                            // Important indicator
-                            if message.isImportant {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(AppColors.warning)
-                            }
-                        }
+                        Text("Mail Package")
+                            .font(AppTypography.largeTitle)
+                            .foregroundColor(AppColors.textPrimary)
                         
-                        Text(message.subject)
+                        Text("Scanned on \(formatDate(mailPackage.createdAt))")
+                            .font(AppTypography.body)
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        Text("\(mailPackage.scanCount) scan\(mailPackage.scanCount == 1 ? "" : "s")")
+                            .font(AppTypography.title2)
+                            .foregroundColor(AppColors.primaryGreen)
+                            .padding(.horizontal, AppSpacing.sm)
+                            .padding(.vertical, AppSpacing.xs)
+                            .background(AppColors.primaryGreen.opacity(0.1))
+                            .cornerRadius(AppCornerRadius.small)
+                    }
+                    
+                    // Placeholder for future content
+                    VStack(spacing: AppSpacing.md) {
+                        Image(systemName: "doc.text.image")
+                            .font(.system(size: 60))
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        Text("Mail Package Details")
                             .font(AppTypography.title2)
                             .foregroundColor(AppColors.textPrimary)
-                    }
-                    .padding(AppSpacing.lg)
-                    .background(AppColors.cardBackground)
-                    .cornerRadius(AppCornerRadius.medium)
-                    .shadow(
-                        color: AppShadows.small.color,
-                        radius: AppShadows.small.radius,
-                        x: AppShadows.small.x,
-                        y: AppShadows.small.y
-                    )
-                    
-                    // Message body
-                    VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("Message")
-                            .font(AppTypography.title3)
-                            .foregroundColor(AppColors.textPrimary)
                         
-                        Text(message.body)
+                        Text("Additional details and functionality will be added here.")
                             .font(AppTypography.body)
-                            .foregroundColor(AppColors.textPrimary)
-                            .multilineTextAlignment(.leading)
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
                     }
-                    .padding(AppSpacing.lg)
+                    .frame(maxWidth: .infinity)
+                    .padding(AppSpacing.xl)
                     .background(AppColors.cardBackground)
                     .cornerRadius(AppCornerRadius.medium)
-                    .shadow(
-                        color: AppShadows.small.color,
-                        radius: AppShadows.small.radius,
-                        x: AppShadows.small.x,
-                        y: AppShadows.small.y
-                    )
-                    
-                    // Attachments
-                    if let attachments = message.attachments, !attachments.isEmpty {
-                        VStack(alignment: .leading, spacing: AppSpacing.md) {
-                            Text("Attachments (\(attachments.count))")
-                                .font(AppTypography.title3)
-                                .foregroundColor(AppColors.textPrimary)
-                            
-                            ForEach(attachments) { attachment in
-                                AttachmentCard(attachment: attachment)
-                            }
-                        }
-                        .padding(AppSpacing.lg)
-                        .background(AppColors.cardBackground)
-                        .cornerRadius(AppCornerRadius.medium)
-                        .shadow(
-                            color: AppShadows.small.color,
-                            radius: AppShadows.small.radius,
-                            x: AppShadows.small.x,
-                            y: AppShadows.small.y
-                        )
-                    }
                 }
                 .padding(AppSpacing.lg)
             }
             .background(AppColors.background)
-            .navigationTitle("Message")
+            .navigationTitle("Mail Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -458,55 +413,11 @@ struct MessageDetailView: View {
         }
     }
     
-    private var timeAgo: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: message.createdAt, relativeTo: Date())
-    }
-}
-
-// MARK: - Attachment Card Component
-struct AttachmentCard: View {
-    let attachment: MailAttachment
-    
-    var body: some View {
-        Button(action: {
-            // Open attachment
-        }) {
-            HStack(spacing: AppSpacing.md) {
-                Image(systemName: "doc.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(AppColors.primaryGreen)
-                
-                VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text(attachment.name)
-                        .font(AppTypography.body)
-                        .foregroundColor(AppColors.textPrimary)
-                        .lineLimit(1)
-                    
-                    Text("\(attachment.type.uppercased()) • \(formatFileSize(attachment.size))")
-                        .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.textSecondary)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "arrow.down.circle")
-                    .font(.system(size: 16))
-                    .foregroundColor(AppColors.primaryGreen)
-            }
-            .padding(AppSpacing.md)
-            .background(AppColors.background)
-            .cornerRadius(AppCornerRadius.small)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func formatFileSize(_ size: Int) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(size))
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 

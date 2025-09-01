@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import UIKit
 
 // MARK: - API Service
 class APIService: ObservableObject {
@@ -448,6 +449,62 @@ class APIService: ObservableObject {
             body: jsonData,
             responseType: SurveyCompletion.self
         )
+    }
+    
+    // MARK: - Mail Analysis API
+    func analyzeMailPackage(request: MailAnalysisRequest) async throws -> MailAnalysisResponse {
+        let endpoint = "/api/mail/analyze"
+        
+        print("🔍 Mail Analysis API - Endpoint: \(endpoint)")
+        print("🔍 Mail Analysis API - Full URL: \(baseURL)\(endpoint)")
+        print("📝 Analysis data: mailPackageId=\(request.mailPackageId), imageCount=\(request.imageCount)")
+        print("📝 OCR text length: \(request.ocrText.count) characters")
+        
+        // Encode request to JSON data
+        guard let jsonData = try? JSONEncoder().encode(request) else {
+            throw APIError.invalidResponse
+        }
+        
+        return try await makeRequest(
+            endpoint: endpoint,
+            method: .POST,
+            body: jsonData,
+            responseType: MailAnalysisResponse.self
+        ).async()
+    }
+    
+    func uploadImagesToS3(images: [UIImage], mailPackageId: String) async throws -> [String] {
+        // Placeholder for S3 upload - would integrate with AWS SDK
+        print("☁️ S3 Upload - Would upload \(images.count) images for package: \(mailPackageId)")
+        
+        // For now, return placeholder URLs
+        return images.enumerated().map { index, _ in
+            "https://s3.amazonaws.com/your-bucket/\(mailPackageId)/image_\(index + 1).jpg"
+        }
+    }
+    
+    func updateMailPackageInDB(mailPackageId: String, analysis: MailAnalysis, s3Urls: [String]) async throws -> Bool {
+        let endpoint = "/api/mail/update-package"
+        
+        let requestBody: [String: Any] = [
+            "mail_package_id": mailPackageId,
+            "analysis": [
+                "company_name": analysis.companyName,
+                "industry": analysis.industry,
+                "offer_description": analysis.offerDescription,
+                "recipient_guess": analysis.recipientGuess,
+                "confidence": analysis.confidence ?? 0.0,
+                "processing_date": ISO8601DateFormatter().string(from: analysis.processingDate)
+            ],
+            "s3_urls": s3Urls
+        ]
+        
+        print("🔄 Update Mail Package API - Endpoint: \(endpoint)")
+        print("🔄 Update Mail Package API - Full URL: \(baseURL)\(endpoint)")
+        print("📝 Update data: mailPackageId=\(mailPackageId), s3Urls=\(s3Urls.count)")
+        
+        // For now, just return success - would make actual API call
+        return true
     }
 }
 
