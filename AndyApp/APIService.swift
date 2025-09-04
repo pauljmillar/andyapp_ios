@@ -32,7 +32,9 @@ class APIService: ObservableObject {
         self.authToken = nil
     }
     
-    // MARK: - Generic Request Method
+
+    
+    // MARK: - Generic Request Method (Combine)
     private func makeRequest<T: Codable>(
         endpoint: String,
         method: HTTPMethod = .GET,
@@ -109,6 +111,77 @@ class APIService: ObservableObject {
                 return APIError.decodingError(error)
             }
             .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Generic Request Method (Async)
+    private func makeRequestAsync<T: Codable>(
+        endpoint: String,
+        method: HTTPMethod = .GET,
+        body: Data? = nil,
+        responseType: T.Type
+    ) async throws -> T {
+        
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            print("❌ Invalid URL: \(baseURL)\(endpoint)")
+            throw APIError.invalidURL
+        }
+        
+        print("🌐 Making async request to: \(url)")
+        print("🌐 Method: \(method.rawValue)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("AndyApp-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        
+        // Always get a fresh token from Clerk for each request
+        do {
+            let freshToken = try await ClerkAuthManager.shared.generateJWTToken()
+            request.setValue("Bearer \(freshToken)", forHTTPHeaderField: "Authorization")
+            print("🔑 Authorization header set with fresh Bearer token: \(freshToken)")
+        } catch {
+            print("⚠️ Failed to get fresh auth token: \(error)")
+            throw APIError.unauthorized
+        }
+        
+        if let body = body {
+            request.httpBody = body
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ Invalid response type")
+            throw APIError.invalidResponse
+        }
+        
+        print("📡 Response status code: \(httpResponse.statusCode)")
+        print("📡 Response headers: \(httpResponse.allHeaderFields)")
+        
+        if httpResponse.statusCode == 401 {
+            print("❌ Unauthorized (401) - Check your auth token")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📡 Response body: \(responseString)")
+            }
+            throw APIError.unauthorized
+        }
+        
+        if httpResponse.statusCode >= 400 {
+            print("❌ Server error: \(httpResponse.statusCode)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📡 Response body: \(responseString)")
+            }
+            throw APIError.serverError(httpResponse.statusCode)
+        }
+        
+        print("✅ Async request successful")
+        
+        // Log the response body for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📡 Response body: \(responseString)")
+        }
+        
+        return try JSONDecoder().decode(responseType, from: data)
     }
     
     // MARK: - Panelist Profile Endpoint
@@ -386,6 +459,75 @@ class APIService: ObservableObject {
         )
     }
     
+    // MARK: - Async Redemption Endpoints (with automatic token refresh)
+    func getAvailableOffersAsync(
+        active: Bool? = true,
+        minPoints: Int? = nil,
+        maxPoints: Int? = nil,
+        limit: Int = 20,
+        offset: Int = 0
+    ) async throws -> OffersResponse {
+        var endpoint = "/api/offers?limit=\(limit)&offset=\(offset)"
+        
+        if let active = active {
+            endpoint += "&active=\(active)"
+        }
+        if let minPoints = minPoints {
+            endpoint += "&min_points=\(minPoints)"
+        }
+        if let maxPoints = maxPoints {
+            endpoint += "&max_points=\(maxPoints)"
+        }
+        
+        print("🌐 Available Offers Async API - Endpoint: \(endpoint)")
+        print("🌐 Available Offers Async API - Full URL: \(baseURL)\(endpoint)")
+        
+        return try await makeRequestAsync(
+            endpoint: endpoint,
+            responseType: OffersResponse.self
+        )
+    }
+    
+    func getRedemptionHistoryAsync(
+        status: String? = nil,
+        limit: Int = 10,
+        offset: Int = 0
+    ) async throws -> RedemptionsResponse {
+        var endpoint = "/api/redemptions?limit=\(limit)&offset=\(offset)"
+        
+        if let status = status {
+            endpoint += "&status=\(status)"
+        }
+        
+        print("🌐 Redemption History Async API - Endpoint: \(endpoint)")
+        print("🌐 Redemption History Async API - Full URL: \(baseURL)\(endpoint)")
+        
+        return try await makeRequestAsync(
+            endpoint: endpoint,
+            responseType: RedemptionsResponse.self
+        )
+    }
+    
+    func redeemPointsAsync(offerId: String) async throws -> RedemptionResponse {
+        print("🌐 Redeem Points Async API - Endpoint: /api/redemptions")
+        print("🌐 Redeem Points Async API - Full URL: \(baseURL)/api/redemptions")
+        print("🎁 Redeeming points for offer ID: \(offerId)")
+        
+        let request = RedemptionRequest(offerId: offerId)
+        
+        // Encode request to JSON data
+        guard let jsonData = try? JSONEncoder().encode(request) else {
+            throw APIError.invalidResponse
+        }
+        
+        return try await makeRequestAsync(
+            endpoint: "/api/redemptions",
+            method: .POST,
+            body: jsonData,
+            responseType: RedemptionResponse.self
+        )
+    }
+    
     // MARK: - Activity Endpoints
     func getActivityFeed(page: Int = 1, limit: Int = 20) -> AnyPublisher<PaginatedResponse<ActivityItem>, APIError> {
         return makeRequest(
@@ -451,60 +593,145 @@ class APIService: ObservableObject {
         )
     }
     
-    // MARK: - Mail Analysis API
-    func analyzeMailPackage(request: MailAnalysisRequest) async throws -> MailAnalysisResponse {
-        let endpoint = "/api/mail/analyze"
+    // MARK: - Mail Package Management API
+    func createMailPackage(request: CreateMailPackageRequest) async throws -> CreateMailPackageResponse {
+        let endpoint = "/api/panelist/mail-packages"
         
-        print("🔍 Mail Analysis API - Endpoint: \(endpoint)")
-        print("🔍 Mail Analysis API - Full URL: \(baseURL)\(endpoint)")
-        print("📝 Analysis data: mailPackageId=\(request.mailPackageId), imageCount=\(request.imageCount)")
-        print("📝 OCR text length: \(request.ocrText.count) characters")
+        print("📦 Create Mail Package API - Endpoint: \(endpoint)")
+        print("📦 Create Mail Package API - Full URL: \(baseURL)\(endpoint)")
+        print("📝 Package data: name=\(request.packageName)")
         
-        // Encode request to JSON data
         guard let jsonData = try? JSONEncoder().encode(request) else {
             throw APIError.invalidResponse
         }
         
-        return try await makeRequest(
+        return try await makeRequestAsync(
             endpoint: endpoint,
             method: .POST,
             body: jsonData,
-            responseType: MailAnalysisResponse.self
-        ).async()
+            responseType: CreateMailPackageResponse.self
+        )
     }
     
-    func uploadImagesToS3(images: [UIImage], mailPackageId: String) async throws -> [String] {
-        // Placeholder for S3 upload - would integrate with AWS SDK
-        print("☁️ S3 Upload - Would upload \(images.count) images for package: \(mailPackageId)")
-        
-        // For now, return placeholder URLs
-        return images.enumerated().map { index, _ in
-            "https://s3.amazonaws.com/your-bucket/\(mailPackageId)/image_\(index + 1).jpg"
-        }
-    }
-    
-    func updateMailPackageInDB(mailPackageId: String, analysis: MailAnalysis, s3Urls: [String]) async throws -> Bool {
-        let endpoint = "/api/mail/update-package"
-        
-        let requestBody: [String: Any] = [
-            "mail_package_id": mailPackageId,
-            "analysis": [
-                "company_name": analysis.companyName,
-                "industry": analysis.industry,
-                "offer_description": analysis.offerDescription,
-                "recipient_guess": analysis.recipientGuess,
-                "confidence": analysis.confidence ?? 0.0,
-                "processing_date": ISO8601DateFormatter().string(from: analysis.processingDate)
-            ],
-            "s3_urls": s3Urls
-        ]
+    func updateMailPackage(mailPackageId: String, request: UpdateMailPackageRequest) async throws -> UpdateMailPackageResponse {
+        let endpoint = "/api/panelist/mail-packages/\(mailPackageId)"
         
         print("🔄 Update Mail Package API - Endpoint: \(endpoint)")
         print("🔄 Update Mail Package API - Full URL: \(baseURL)\(endpoint)")
-        print("📝 Update data: mailPackageId=\(mailPackageId), s3Urls=\(s3Urls.count)")
+        print("📝 Update data: mailPackageId=\(mailPackageId)")
         
-        // For now, just return success - would make actual API call
-        return true
+        guard let jsonData = try? JSONEncoder().encode(request) else {
+            throw APIError.invalidResponse
+        }
+        
+        // Debug: Print the actual JSON being sent
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("📤 PATCH Request Body: \(jsonString)")
+        }
+        
+        print("🔍 Making PATCH request to: \(endpoint)")
+        print("🔍 Method: \(HTTPMethod.PATCH.rawValue)")
+        print("🔍 Body size: \(jsonData.count) bytes")
+        
+        do {
+            print("🔄 Trying PATCH method first...")
+            return try await makeRequestAsync(
+                endpoint: endpoint,
+                method: .PATCH,
+                body: jsonData,
+                responseType: UpdateMailPackageResponse.self
+            )
+        } catch {
+            print("❌ PATCH request failed: \(error)")
+            print("🔄 Trying PUT method as fallback...")
+            
+            // Try PUT as fallback (some APIs don't support PATCH)
+            do {
+                return try await makeRequestAsync(
+                    endpoint: endpoint,
+                    method: .PUT,
+                    body: jsonData,
+                    responseType: UpdateMailPackageResponse.self
+                )
+            } catch {
+                print("❌ PUT request also failed: \(error)")
+                print("❌ Endpoint: \(endpoint)")
+                print("❌ Both PATCH and PUT methods failed")
+                throw error
+            }
+        }
+    }
+    
+    func uploadMailScan(request: MailScanUploadRequest) async throws -> MailScanUploadResponse {
+        let endpoint = "/api/panelist/mail-scans/upload"
+        
+        print("📸 Upload Mail Scan API - Endpoint: \(endpoint)")
+        print("📸 Upload Mail Scan API - Full URL: \(baseURL)\(endpoint)")
+        print("📝 Upload data: mailPackageId=\(request.mailPackageId ?? "nil"), documentType=\(request.documentType)")
+        
+        // Configure JSON encoder to include nil values
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        
+        // Create a custom dictionary to ensure nil values are included
+        var requestDict: [String: Any] = [
+            "document_type": request.documentType,
+            "file_data": request.fileData,
+            "filename": request.filename
+        ]
+        
+        // Explicitly set mail_package_id to null if nil
+        if let mailPackageId = request.mailPackageId {
+            requestDict["mail_package_id"] = mailPackageId
+        } else {
+            requestDict["mail_package_id"] = NSNull()
+        }
+        
+        // Add optional fields
+        if let imageSequence = request.imageSequence {
+            requestDict["image_sequence"] = imageSequence
+        }
+        if let mimeType = request.mimeType {
+            requestDict["mime_type"] = mimeType
+        }
+        if let metadata = request.metadata {
+            requestDict["metadata"] = metadata
+        }
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestDict) else {
+            throw APIError.invalidResponse
+        }
+        
+        // Debug: Print the actual JSON being sent
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("📤 JSON Request Body: \(jsonString)")
+        }
+        
+        return try await makeRequestAsync(
+            endpoint: endpoint,
+            method: .POST,
+            body: jsonData,
+            responseType: MailScanUploadResponse.self
+        )
+    }
+    
+    func processMailPackage(mailPackageId: String, request: ProcessMailPackageRequest) async throws -> ProcessMailPackageResponse {
+        let endpoint = "/api/panelist/mail-packages/\(mailPackageId)/process"
+        
+        print("🤖 Process Mail Package API - Endpoint: \(endpoint)")
+        print("🤖 Process Mail Package API - Full URL: \(baseURL)\(endpoint)")
+        print("📝 Process data: mailPackageId=\(mailPackageId), inputText=\(request.inputText)")
+        
+        guard let jsonData = try? JSONEncoder().encode(request) else {
+            throw APIError.invalidResponse
+        }
+        
+        return try await makeRequestAsync(
+            endpoint: endpoint,
+            method: .POST,
+            body: jsonData,
+            responseType: ProcessMailPackageResponse.self
+        )
     }
 }
 
@@ -538,6 +765,7 @@ enum HTTPMethod: String {
     case GET = "GET"
     case POST = "POST"
     case PUT = "PUT"
+    case PATCH = "PATCH"
     case DELETE = "DELETE"
 }
 

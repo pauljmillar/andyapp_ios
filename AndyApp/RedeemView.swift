@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Combine
 
 struct RedeemView: View {
     @StateObject private var authManager = ClerkAuthManager.shared
@@ -268,7 +267,6 @@ class RedeemViewModel: ObservableObject {
     @Published var redemptionResult: RedemptionResponse?
     
     private let apiService = APIService.shared
-    private var cancellables = Set<AnyCancellable>()
     
     init() {
         loadData()
@@ -280,61 +278,73 @@ class RedeemViewModel: ObservableObject {
     }
     
     func loadOffers() {
-        isLoading = true
-        error = nil
+        Task {
+            await loadOffersAsync()
+        }
+    }
+    
+    private func loadOffersAsync() async {
+        await MainActor.run {
+            isLoading = true
+            error = nil
+        }
         
-        apiService.getAvailableOffers(limit: 50)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        self?.error = error.localizedDescription
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.offers = response.offers
-                }
-            )
-            .store(in: &cancellables)
+        do {
+            let response = try await apiService.getAvailableOffersAsync(limit: 50)
+            await MainActor.run {
+                self.offers = response.offers
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error.localizedDescription
+                self.isLoading = false
+            }
+        }
     }
     
     func loadRedemptionHistory() {
-        apiService.getRedemptionHistory(limit: 20)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
-                        print("❌ Failed to load redemption history: \(error)")
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.redemptions = response.redemptions
-                }
-            )
-            .store(in: &cancellables)
+        Task {
+            await loadRedemptionHistoryAsync()
+        }
+    }
+    
+    private func loadRedemptionHistoryAsync() async {
+        do {
+            let response = try await apiService.getRedemptionHistoryAsync(limit: 20)
+            await MainActor.run {
+                self.redemptions = response.redemptions
+            }
+        } catch {
+            print("❌ Failed to load redemption history: \(error)")
+        }
     }
     
     func redeemPoints(for offer: Offer) {
-        isLoading = true
-        error = nil
+        Task {
+            await redeemPointsAsync(for: offer)
+        }
+    }
+    
+    private func redeemPointsAsync(for offer: Offer) async {
+        await MainActor.run {
+            isLoading = true
+            error = nil
+        }
         
-        apiService.redeemPoints(offerId: offer.id)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        self?.error = error.localizedDescription
-                    }
-                },
-                receiveValue: { [weak self] response in
-                    self?.redemptionResult = response
-                    self?.showingRedemptionSuccess = true
-                    // Refresh data after successful redemption
-                    self?.loadData()
-                }
-            )
-            .store(in: &cancellables)
+        do {
+            let response = try await apiService.redeemPointsAsync(offerId: offer.id)
+            await MainActor.run {
+                self.redemptionResult = response
+                self.showingRedemptionSuccess = true
+                // Refresh data after successful redemption
+                self.loadData()
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error.localizedDescription
+                self.isLoading = false
+            }
+        }
     }
 }

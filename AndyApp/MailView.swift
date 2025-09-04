@@ -33,6 +33,11 @@ struct MailView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: AppSpacing.md) {
+                            // Loading card at the top when processing
+                            if viewModel.isProcessing {
+                                ProcessingCard()
+                            }
+                            
                             ForEach(viewModel.mailPackages) { mailPackage in
                                 MailPackageCard(mailPackage: mailPackage) {
                                     viewModel.selectMailPackage(mailPackage)
@@ -76,12 +81,89 @@ struct MailView: View {
         }
         .sheet(isPresented: $showingCamera) {
             CameraView { images in
-                viewModel.createMailPackage(with: images)
+                Task {
+                    await viewModel.startMailPackageWorkflow(with: images)
+                }
             }
         }
         .sheet(item: $viewModel.selectedMailPackage) { mailPackage in
             MailPackageDetailView(mailPackage: mailPackage)
         }
+        .sheet(isPresented: $viewModel.showingSurvey) {
+            if let result = viewModel.processingResult {
+                MailPackageSurveyView(
+                    processingResult: result,
+                    onSurveyCompleted: { survey in
+                        Task {
+                            await viewModel.completeSurvey(survey: survey, mailPackageId: viewModel.currentMailPackageId)
+                            viewModel.showingSurvey = false
+                        }
+                    },
+                    onCancel: {
+                        viewModel.showingSurvey = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Processing Card
+struct ProcessingCard: View {
+    var body: some View {
+        HStack(spacing: AppSpacing.md) {
+            // Loading circle
+            Circle()
+                .fill(AppColors.primaryGreen.opacity(0.1))
+                .frame(width: 56, height: 56)
+                .overlay(
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
+                )
+            
+            // Content - 3 lines of text
+            VStack(alignment: .leading, spacing: 4) {
+                // Line 1: Industry
+                Text("Processing...")
+                    .font(AppTypography.caption1)
+                    .foregroundColor(AppColors.textSecondary)
+                    .lineLimit(1)
+                
+                // Line 2: Company
+                Text("AI analyzing your mail")
+                    .font(AppTypography.body)
+                    .foregroundColor(AppColors.textPrimary)
+                    .lineLimit(1)
+                
+                // Line 3: Offer
+                Text("Please wait...")
+                    .font(AppTypography.caption1)
+                    .foregroundColor(AppColors.textSecondary)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            // Right side: Time and loading indicator
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("Now")
+                    .font(AppTypography.caption2)
+                    .foregroundColor(Color(red: 0.314, green: 0.608, blue: 0.961)) // #509bf5
+                
+                // Loading dots
+                HStack(spacing: 2) {
+                    ForEach(0..<3) { _ in
+                        Circle()
+                            .fill(AppColors.primaryGreen)
+                            .frame(width: 4, height: 4)
+                            .scaleEffect(0.8)
+                    }
+                }
+            }
+        }
+        .padding(AppSpacing.md)
+        .background(Color.black) // Black background with no border
+        .cornerRadius(AppCornerRadius.medium)
     }
 }
 
@@ -93,9 +175,9 @@ struct MailPackageCard: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: AppSpacing.md) {
-                // Circular thumbnail
-                if let thumbnailPath = mailPackage.thumbnailPath {
-                    AsyncImage(url: URL(string: thumbnailPath)) { image in
+                // Circular thumbnail - full height of card
+                if let s3Key = mailPackage.s3Key {
+                    AsyncImage(url: URL(string: s3Key)) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -104,17 +186,13 @@ struct MailPackageCard: View {
                             .font(.system(size: 24))
                             .foregroundColor(AppColors.textSecondary)
                     }
-                    .frame(width: 60, height: 60)
+                    .frame(width: 56, height: 56)
                     .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(AppColors.primaryGreen.opacity(0.3), lineWidth: 2)
-                    )
                 } else {
                     // Default placeholder
-                    RoundedRectangle(cornerRadius: 30)
+                    Circle()
                         .fill(AppColors.primaryGreen.opacity(0.1))
-                        .frame(width: 60, height: 60)
+                        .frame(width: 56, height: 56)
                         .overlay(
                             Image(systemName: "doc.text.image")
                                 .font(.system(size: 24))
@@ -122,54 +200,59 @@ struct MailPackageCard: View {
                         )
                 }
                 
-                // Content
-                VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                    HStack {
-                        Text(mailPackage.timestamp)
-                            .font(AppTypography.headline)
-                            .foregroundColor(AppColors.textPrimary)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        // Scan count badge
-                        Text("\(mailPackage.scanCount) scan\(mailPackage.scanCount == 1 ? "" : "s")")
-                            .font(AppTypography.caption1)
-                            .foregroundColor(AppColors.primaryGreen)
-                            .padding(.horizontal, AppSpacing.sm)
-                            .padding(.vertical, AppSpacing.xs)
-                            .background(AppColors.primaryGreen.opacity(0.1))
-                            .cornerRadius(AppCornerRadius.small)
-                    }
-                    
-                    Text(formatDate(mailPackage.createdAt))
+                // Content - 3 lines of text
+                VStack(alignment: .leading, spacing: 4) {
+                    // Line 1: Industry (or Unknown)
+                    Text(mailPackage.industry ?? "Unknown")
                         .font(AppTypography.caption1)
                         .foregroundColor(AppColors.textSecondary)
+                        .lineLimit(1)
+                    
+                    // Line 2: Company or brand_name
+                    Text(mailPackage.brandName ?? "Unknown Company")
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColors.textPrimary)
+                        .lineLimit(1)
+                    
+                    // Line 3: First few words of the offer
+                    Text(mailPackage.primaryOffer ?? "No offer details")
+                        .font(AppTypography.caption1)
+                        .foregroundColor(AppColors.textSecondary)
+                        .lineLimit(1)
                 }
                 
                 Spacer()
                 
-                // Chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(AppColors.textSecondary)
+                // Right side: Time and completion status
+                VStack(alignment: .trailing, spacing: 4) {
+                    // Time (blue color, same as profile circle)
+                    Text(formatTime(mailPackage.createdAt))
+                        .font(AppTypography.caption2)
+                        .foregroundColor(Color(red: 0.314, green: 0.608, blue: 0.961)) // #509bf5
+                    
+                    // Completion check mark (only if processing is complete)
+                    if mailPackage.processingStatus == .completed {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 16, height: 16)
+                            .overlay(
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                            )
+                    }
+                }
             }
-            .padding(AppSpacing.lg)
-            .background(AppColors.cardBackground)
+            .padding(AppSpacing.md)
+            .background(Color.black) // Black background with no border
             .cornerRadius(AppCornerRadius.medium)
-            .shadow(
-                color: AppShadows.small.color,
-                radius: AppShadows.small.radius,
-                x: AppShadows.small.x,
-                y: AppShadows.small.y
-            )
         }
         .buttonStyle(PlainButtonStyle())
     }
     
-    private func formatDate(_ date: Date) -> String {
+    private func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
+        formatter.dateStyle = .none
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
@@ -181,8 +264,13 @@ class MailViewModel: ObservableObject {
     @Published var selectedMailPackage: MailPackage?
     @Published var isLoading = false
     @Published var error: String?
+    @Published var showingSurvey = false
+    @Published var processingResult: ProcessingResult?
+    @Published var currentMailPackageId = ""
+    @Published var isProcessing = false
     
     private let apiService = APIService.shared
+    private let mailProcessingService = MailProcessingService.shared
     private var cancellables = Set<AnyCancellable>()
     
     init() {
@@ -208,35 +296,86 @@ class MailViewModel: ObservableObject {
         selectedMailPackage = mailPackage
     }
     
-    func createMailPackage(with images: [UIImage]) {
+    func startMailPackageWorkflow(with images: [UIImage]) async {
         guard !images.isEmpty else { return }
         
         let timestamp = ISO8601DateFormatter().string(from: Date())
-        let mailPackageId = UUID().uuidString
         
-        // Save images to local storage on main actor
-        Task { @MainActor in
-            let savedPaths = LocalStorageManager.shared.saveMailScans(
+        await MainActor.run {
+            self.isProcessing = true
+        }
+        
+        do {
+            print("🚀 Starting mail package workflow with \(images.count) images...")
+            
+            // Create mail package and process ALL images (including AI processing)
+            let mailPackage = try await mailProcessingService.createAndProcessMailPackage(
                 images: images,
-                mailPackageId: mailPackageId,
                 timestamp: timestamp
             )
             
-            // Create mail package
-            let mailPackage = MailPackage(
-                id: mailPackageId,
-                timestamp: timestamp,
-                createdAt: Date(),
-                scanCount: images.count,
-                thumbnailPath: savedPaths.first
+            print("✅ Mail package created and processed successfully")
+            print("🆔 Mail package ID: \(mailPackage.id)")
+            
+            // Get the processing result from the service
+            // We need to get the OCR texts from the images first
+            var allOcrTexts: [String] = []
+            
+            // Extract OCR from all images
+            for (index, image) in images.enumerated() {
+                let ocrText = try await mailProcessingService.ocrService.extractText(from: image)
+                allOcrTexts.append(ocrText)
+                print("📝 OCR extracted from image \(index + 1): \(ocrText.count) characters")
+            }
+            
+            let processingResult = try await mailProcessingService.completeMailPackage(
+                mailPackageId: mailPackage.id,
+                allOcrTexts: allOcrTexts,
+                timestamp: timestamp
             )
             
-            // Save to local storage
-            LocalStorageManager.shared.saveMailPackage(mailPackage)
+            print("🤖 AI processing completed, showing survey...")
             
-            // Refresh the list
+            // Show survey with processing results
+            await MainActor.run {
+                self.processingResult = processingResult
+                self.currentMailPackageId = mailPackage.id
+                self.showingSurvey = true
+                self.isProcessing = false
+                
+                // Add the new mail package to the list
+                self.mailPackages.append(mailPackage)
+            }
+            
+        } catch {
+            print("❌ Mail package workflow failed: \(error)")
+            await MainActor.run {
+                self.error = error.localizedDescription
+                self.isProcessing = false
+            }
+        }
+    }
+    
+    func completeSurvey(survey: MailPackageSurvey, mailPackageId: String) async {
+        do {
+            // Update the survey with the mail package ID
+            var updatedSurvey = survey
+            updatedSurvey.mailPackageId = mailPackageId
+            
+            // Update mail package with survey results
+            _ = try await mailProcessingService.updateMailPackageWithSurvey(
+                mailPackageId: mailPackageId,
+                survey: updatedSurvey
+            )
+            
+            // Refresh the mail packages list
             await MainActor.run {
                 loadMailPackages()
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.error = error.localizedDescription
             }
         }
     }
@@ -302,24 +441,11 @@ struct CameraView: View {
                     .buttonStyle(PrimaryButtonStyle())
                     .frame(maxWidth: .infinity)
                     
-                    Button("Choose from Library") {
+                    Button("Choose Sample Images") {
                         showingPhotoLibrary = true
                     }
                     .buttonStyle(SecondaryButtonStyle())
                     .frame(maxWidth: .infinity)
-                    
-                    #if targetEnvironment(simulator)
-                    Button("Create Sample Images") {
-                        print("🚀 Starting sample image creation...")
-                        let sampleImages = TestDataHelper.shared.createSampleImages()
-                        print("📸 Sample images created, calling onImagesCaptured with \(sampleImages.count) images")
-                        onImagesCaptured(sampleImages)
-                        dismiss()
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .frame(maxWidth: .infinity)
-                    .foregroundColor(.orange)
-                    #endif
                     
                     Button("Cancel") {
                         dismiss()
@@ -340,10 +466,10 @@ struct CameraView: View {
                 })
             }
             .sheet(isPresented: $showingPhotoLibrary) {
-                ImagePicker(images: [], onImagesSelected: { images in
+                SampleImagePickerView { images in
                     onImagesCaptured(images)
                     dismiss()
-                })
+                }
             }
         }
     }
@@ -368,7 +494,7 @@ struct MailPackageDetailView: View {
                             .font(AppTypography.body)
                             .foregroundColor(AppColors.textSecondary)
                         
-                        Text("\(mailPackage.scanCount) scan\(mailPackage.scanCount == 1 ? "" : "s")")
+                        Text("Mail Package")
                             .font(AppTypography.title2)
                             .foregroundColor(AppColors.primaryGreen)
                             .padding(.horizontal, AppSpacing.sm)

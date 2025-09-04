@@ -829,49 +829,139 @@ struct RedemptionResponse: Codable {
 }
 
 // MARK: - Mail Package Models
+enum ProcessingStatus: String, Codable {
+    case pending = "pending"
+    case processing = "processing"
+    case completed = "completed"
+    case failed = "failed"
+}
+
 struct MailPackage: Codable, Identifiable {
     let id: String
-    let timestamp: String
+    let panelistId: String
+    let packageName: String??
+    let packageDescription: String?
+    let industry: String?
+    let brandName: String?
+    let primaryOffer: String?
+    let companyValidated: Bool?
+    let responseIntention: String?
+    let nameCheck: String?
+    let status: String
+    let pointsAwarded: Int??
+    let isApproved: Bool
+    let processingStatus: ProcessingStatus??
+    let notes: String?
+    let processingNotes: String?
     let createdAt: Date
-    let scanCount: Int
-    let thumbnailPath: String?
-    var status: MailPackageStatus
-    var analysis: MailAnalysis?
+    let updatedAt: Date
+    let s3Key: String?
     
     enum CodingKeys: String, CodingKey {
         case id
-        case timestamp
-        case createdAt = "created_at"
-        case scanCount = "scan_count"
-        case thumbnailPath = "thumbnail_path"
+        case panelistId = "panelist_id"
+        case packageName = "package_name"
+        case packageDescription = "package_description"
+        case industry
+        case brandName = "brand_name"
+        case primaryOffer = "primary_offer"
+        case companyValidated = "company_validated"
+        case responseIntention = "response_intention"
+        case nameCheck = "name_check"
         case status
-        case analysis
+        case pointsAwarded = "points_awarded"
+        case isApproved = "is_approved"
+        case processingStatus = "processing_status"
+        case notes
+        case processingNotes = "processing_notes"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case s3Key = "s3_key"
     }
     
-    init(id: String, timestamp: String, createdAt: Date, scanCount: Int, thumbnailPath: String? = nil, status: MailPackageStatus = .processing, analysis: MailAnalysis? = nil) {
+    init(id: String, panelistId: String, packageName: String, packageDescription: String? = nil, industry: String? = nil, brandName: String? = nil, primaryOffer: String? = nil, companyValidated: Bool? = nil, responseIntention: String? = nil, nameCheck: String? = nil, status: String = "pending", pointsAwarded: Int = 0, isApproved: Bool = false, processingStatus: ProcessingStatus = .pending, createdAt: Date = Date(), updatedAt: Date = Date(), s3Key: String? = nil) {
         self.id = id
-        self.timestamp = timestamp
-        self.createdAt = createdAt
-        self.scanCount = scanCount
-        self.thumbnailPath = thumbnailPath
+        self.panelistId = panelistId
+        self.packageName = packageName
+        self.packageDescription = packageDescription
+        self.industry = industry
+        self.brandName = brandName
+        self.primaryOffer = primaryOffer
+        self.companyValidated = companyValidated
+        self.responseIntention = responseIntention
+        self.nameCheck = nameCheck
         self.status = status
-        self.analysis = analysis
+        self.pointsAwarded = pointsAwarded
+        self.isApproved = isApproved
+        self.processingStatus = processingStatus
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.s3Key = s3Key
     }
 }
 
 struct MailScan: Codable, Identifiable {
     let id: String
-    let mailPackageId: String
-    let imagePath: String
-    let scanNumber: Int
+    let panelistId: String
+    let mailpackId: String
+    let imageFilename: String
+    let s3BucketName: String
+    let s3Key: String
+    let imageSequence: Int
+    let scanStatus: String
+    let scanDate: Date
     let createdAt: Date
     
     enum CodingKeys: String, CodingKey {
         case id
-        case mailPackageId = "mail_package_id"
-        case imagePath = "image_path"
-        case scanNumber = "scan_number"
+        case panelistId = "panelist_id"
+        case mailpackId = "mailpack_id"
+        case imageFilename = "image_filename"
+        case s3BucketName = "s3_bucket_name"
+        case s3Key = "s3_key"
+        case imageSequence = "image_sequence"
+        case scanStatus = "scan_status"
+        case scanDate = "scan_date"
         case createdAt = "created_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        panelistId = try container.decode(String.self, forKey: .panelistId)
+        mailpackId = try container.decode(String.self, forKey: .mailpackId)
+        imageFilename = try container.decode(String.self, forKey: .imageFilename)
+        s3BucketName = try container.decode(String.self, forKey: .s3BucketName)
+        s3Key = try container.decode(String.self, forKey: .s3Key)
+        imageSequence = try container.decode(Int.self, forKey: .imageSequence)
+        scanStatus = try container.decode(String.self, forKey: .scanStatus)
+        
+        // Handle date decoding with fallback
+        if let dateString = try? container.decode(String.self, forKey: .scanDate) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: dateString) {
+                scanDate = date
+            } else {
+                // Fallback to current date if parsing fails
+                scanDate = Date()
+            }
+        } else {
+            scanDate = Date()
+        }
+        
+        if let dateString = try? container.decode(String.self, forKey: .createdAt) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: dateString) {
+                createdAt = date
+            } else {
+                createdAt = Date()
+            }
+        } else {
+            createdAt = Date()
+        }
     }
 }
 
@@ -915,16 +1005,332 @@ struct MailAnalysis: Codable {
     }
 }
 
-struct MailAnalysisRequest: Codable {
-    let mailPackageId: String
-    let ocrText: String
-    let imageCount: Int
-    let timestamp: String
+// MARK: - Mail Package API Models
+struct CreateMailPackageRequest: Codable {
+    let packageName: String?
+    let packageDescription: String?
+    let industry: String?
+    let brandName: String?
+    let companyValidated: Bool?
+    let responseIntention: String?
+    let nameCheck: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case packageName = "package_name"
+        case packageDescription = "package_description"
+        case industry
+        case brandName = "brand_name"
+        case companyValidated = "company_validated"
+        case responseIntention = "response_intention"
+        case nameCheck = "name_check"
+    }
 }
 
-struct MailAnalysisResponse: Codable {
+struct CreateMailPackageResponse: Codable {
     let success: Bool
-    let analysis: MailAnalysis?
+    let mailPackage: MailPackage
+    let message: String
+}
+
+struct UpdateMailPackageRequest: Codable {
+    let brandName: String?
+    let industry: String?
+    let companyValidated: Bool?
+    let responseIntention: String?
+    let nameCheck: String?
+    let notes: String?
+    let status: String?
+    let isApproved: Bool?
+    let processingNotes: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case brandName = "brand_name"
+        case industry
+        case companyValidated = "company_validated"
+        case responseIntention = "response_intention"
+        case nameCheck = "name_check"
+        case notes
+        case status
+        case isApproved = "is_approved"
+        case processingNotes = "processing_notes"
+    }
+}
+
+struct UpdateMailPackageResponse: Codable {
+    let success: Bool
+    let mailPackage: MailPackage
     let message: String?
-    let error: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case mailPackage = "mail_package"
+        case message
+    }
+}
+
+// MARK: - Mail Scan Upload Models
+struct MailScanUploadRequest: Codable {
+    let mailPackageId: String? // nil for new package, existing ID for additional scans
+    let documentType: String
+    let imageSequence: Int?
+    let fileData: String // Base64 encoded
+    let filename: String
+    let mimeType: String?
+    let metadata: [String: String]?
+    
+    enum CodingKeys: String, CodingKey {
+        case mailPackageId = "mail_package_id"
+        case documentType = "document_type"
+        case imageSequence = "image_sequence"
+        case fileData = "file_data"
+        case filename
+        case mimeType = "mime_type"
+        case metadata
+    }
+}
+
+struct MailScanUploadResponse: Codable {
+    let success: Bool
+    let uploadType: String
+    let scan: MailScan?
+    let document: MailDocument?
+    let message: String
+    let mailPackage: MailPackageResponse?
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case uploadType = "upload_type"
+        case scan
+        case document
+        case message
+        case mailPackage = "mail_package"
+    }
+}
+
+// New model for the mail package response from upload API
+struct MailPackageResponse: Codable {
+    let id: String
+    let panelistId: String
+    let totalImages: Int
+    let submissionDate: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case panelistId = "panelist_id"
+        case totalImages = "total_images"
+        case submissionDate = "submission_date"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        panelistId = try container.decode(String.self, forKey: .panelistId)
+        totalImages = try container.decode(Int.self, forKey: .totalImages)
+        
+        // Handle date decoding with fallback
+        if let dateString = try? container.decode(String.self, forKey: .submissionDate) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: dateString) {
+                submissionDate = date
+            } else {
+                submissionDate = Date()
+            }
+        } else {
+            submissionDate = Date()
+        }
+    }
+}
+
+struct MailDocument: Codable, Identifiable {
+    let id: String
+    let mailPackageId: String
+    let documentType: String
+    let s3Key: String
+    let filename: String
+    let fileSizeBytes: Int
+    let mimeType: String
+    let uploadedAt: Date
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case mailPackageId = "mail_package_id"
+        case documentType = "document_type"
+        case s3Key = "s3_key"
+        case filename
+        case fileSizeBytes = "file_size_bytes"
+        case mimeType = "mime_type"
+        case uploadedAt = "uploaded_at"
+        case createdAt = "created_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        mailPackageId = try container.decode(String.self, forKey: .mailPackageId)
+        documentType = try container.decode(String.self, forKey: .documentType)
+        s3Key = try container.decode(String.self, forKey: .s3Key)
+        filename = try container.decode(String.self, forKey: .filename)
+        fileSizeBytes = try container.decodeIfPresent(Int.self, forKey: .fileSizeBytes) ?? 0
+        mimeType = try container.decode(String.self, forKey: .mimeType)
+        
+        // Handle date decoding with fallback
+        if let dateString = try? container.decode(String.self, forKey: .uploadedAt) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: dateString) {
+                uploadedAt = date
+            } else {
+                uploadedAt = Date()
+            }
+        } else {
+            uploadedAt = Date()
+        }
+        
+        if let dateString = try? container.decode(String.self, forKey: .createdAt) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: dateString) {
+                createdAt = date
+            } else {
+                createdAt = Date()
+            }
+        } else {
+            createdAt = Date()
+        }
+    }
+}
+
+// MARK: - Mail Package Processing Models
+struct ProcessMailPackageRequest: Codable {
+    let inputText: String
+    let processingNotes: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case inputText = "input_text"
+        case processingNotes = "processing_notes"
+    }
+}
+
+struct ProcessMailPackageResponse: Codable {
+    let success: Bool
+    let processingResult: ProcessingResult
+    let documentRecord: DocumentRecord
+    let message: String
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case processingResult = "processing_result"
+        case documentRecord = "document_record"
+        case message
+    }
+}
+
+struct ProcessingResult: Codable {
+    let industry: String
+    let brandName: String?
+    let recipient: String?
+    let responseIntention: String?
+    let nameCheck: String?
+    let mailType: String?
+    let primaryOffer: String?
+    let urgencyLevel: String?
+    let estimatedValue: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case industry
+        case brandName = "brand_name"
+        case recipient
+        case responseIntention = "response_intention"
+        case nameCheck = "name_check"
+        case mailType = "mail_type"
+        case primaryOffer = "primary_offer"
+        case urgencyLevel = "urgency_level"
+        case estimatedValue = "estimated_value"
+    }
+}
+
+struct DocumentRecord: Codable {
+    let id: String
+    let mailPackageId: String
+    let documentType: String
+    let s3Key: String
+    let filename: String
+    let fileSizeBytes: Int
+    let mimeType: String
+    let uploadedAt: Date
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case mailPackageId = "mail_package_id"
+        case documentType = "document_type"
+        case s3Key = "s3_key"
+        case filename
+        case fileSizeBytes = "file_size_bytes"
+        case mimeType = "mime_type"
+        case uploadedAt = "uploaded_at"
+        case createdAt = "created_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        mailPackageId = try container.decode(String.self, forKey: .mailPackageId)
+        documentType = try container.decode(String.self, forKey: .documentType)
+        s3Key = try container.decode(String.self, forKey: .s3Key)
+        filename = try container.decode(String.self, forKey: .filename)
+        fileSizeBytes = try container.decodeIfPresent(Int.self, forKey: .fileSizeBytes) ?? 0
+        mimeType = try container.decode(String.self, forKey: .mimeType)
+        
+        // Handle date decoding with fallback
+        if let dateString = try? container.decode(String.self, forKey: .uploadedAt) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: dateString) {
+                uploadedAt = date
+            } else {
+                uploadedAt = Date()
+            }
+        } else {
+            uploadedAt = Date()
+        }
+        
+        if let dateString = try? container.decode(String.self, forKey: .createdAt) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: dateString) {
+                createdAt = date
+            } else {
+                createdAt = Date()
+            }
+        } else {
+            createdAt = Date()
+        }
+    }
+}
+
+// MARK: - Survey Questions for Mail Package
+struct MailPackageSurvey: Codable {
+    var mailPackageId: String
+    let recipientAnswer: String? // "me", "household", "unknown", or null if skipped
+    let brandNameAnswer: String // "yes" or "no"
+    let intentionAnswer: String // "yes" or "no"
+    let industry: String
+    let primaryOffer: String?
+    let brandName: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case mailPackageId = "mail_package_id"
+        case recipientAnswer = "recipient_answer"
+        case brandNameAnswer = "brand_name_answer"
+        case intentionAnswer = "intention_answer"
+        case industry
+        case primaryOffer = "primary_offer"
+        case brandName = "brand_name"
+    }
 }

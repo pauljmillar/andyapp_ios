@@ -76,7 +76,7 @@ final class ClerkAuthManager: ObservableObject {
     }
     
     // MARK: - Generate JWT Token
-    private func generateJWTToken() async throws -> String {
+    func generateJWTToken() async throws -> String {
         guard let session = Clerk.shared.session else {
             print("❌ No session found - user not authenticated")
             throw APIError.unauthorized

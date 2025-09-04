@@ -230,6 +230,26 @@ struct ProfileMenuView: View {
                                 }
                             }
                         )
+                        
+                        // Build information at the bottom
+                        Spacer()
+                        
+                        VStack(spacing: AppSpacing.xs) {
+                            Divider()
+                                .background(AppColors.divider)
+                            
+                            VStack(spacing: AppSpacing.xs) {
+                                Text("Version \(BuildInfo.fullVersion)")
+                                    .font(AppTypography.caption2)
+                                    .foregroundColor(AppColors.textSecondary)
+                                
+                                Text("Built \(BuildInfo.buildDate)")
+                                    .font(AppTypography.caption2)
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            .padding(.horizontal, AppSpacing.lg)
+                            .padding(.vertical, AppSpacing.sm)
+                        }
                     }
                 }
                 .background(AppColors.cardBackground)
