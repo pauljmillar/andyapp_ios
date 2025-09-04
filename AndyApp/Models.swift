@@ -839,7 +839,7 @@ enum ProcessingStatus: String, Codable {
 struct MailPackage: Codable, Identifiable {
     let id: String
     let panelistId: String
-    let packageName: String??
+    let packageName: String?
     let packageDescription: String?
     let industry: String?
     let brandName: String?
@@ -848,9 +848,9 @@ struct MailPackage: Codable, Identifiable {
     let responseIntention: String?
     let nameCheck: String?
     let status: String
-    let pointsAwarded: Int??
+    let pointsAwarded: Int?
     let isApproved: Bool
-    let processingStatus: ProcessingStatus??
+    let processingStatus: ProcessingStatus?
     let notes: String?
     let processingNotes: String?
     let createdAt: Date
@@ -879,7 +879,7 @@ struct MailPackage: Codable, Identifiable {
         case s3Key = "s3_key"
     }
     
-    init(id: String, panelistId: String, packageName: String, packageDescription: String? = nil, industry: String? = nil, brandName: String? = nil, primaryOffer: String? = nil, companyValidated: Bool? = nil, responseIntention: String? = nil, nameCheck: String? = nil, status: String = "pending", pointsAwarded: Int = 0, isApproved: Bool = false, processingStatus: ProcessingStatus = .pending, createdAt: Date = Date(), updatedAt: Date = Date(), s3Key: String? = nil) {
+    init(id: String, panelistId: String, packageName: String? = nil, packageDescription: String? = nil, industry: String? = nil, brandName: String? = nil, primaryOffer: String? = nil, companyValidated: Bool? = nil, responseIntention: String? = nil, nameCheck: String? = nil, status: String = "pending", pointsAwarded: Int? = nil, isApproved: Bool = false, processingStatus: ProcessingStatus? = nil, createdAt: Date = Date(), updatedAt: Date = Date(), s3Key: String? = nil) {
         self.id = id
         self.panelistId = panelistId
         self.packageName = packageName
@@ -894,9 +894,62 @@ struct MailPackage: Codable, Identifiable {
         self.pointsAwarded = pointsAwarded
         self.isApproved = isApproved
         self.processingStatus = processingStatus
+        self.notes = nil
+        self.processingNotes = nil
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.s3Key = s3Key
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        panelistId = try container.decode(String.self, forKey: .panelistId)
+        packageName = try container.decodeIfPresent(String.self, forKey: .packageName)
+        packageDescription = try container.decodeIfPresent(String.self, forKey: .packageDescription)
+        industry = try container.decodeIfPresent(String.self, forKey: .industry)
+        brandName = try container.decodeIfPresent(String.self, forKey: .brandName)
+        primaryOffer = try container.decodeIfPresent(String.self, forKey: .primaryOffer)
+        companyValidated = try container.decodeIfPresent(Bool.self, forKey: .companyValidated)
+        responseIntention = try container.decodeIfPresent(String.self, forKey: .responseIntention)
+        nameCheck = try container.decodeIfPresent(String.self, forKey: .nameCheck)
+        status = try container.decode(String.self, forKey: .status)
+        pointsAwarded = try container.decodeIfPresent(Int.self, forKey: .pointsAwarded)
+        isApproved = try container.decode(Bool.self, forKey: .isApproved)
+        processingStatus = try container.decodeIfPresent(ProcessingStatus.self, forKey: .processingStatus)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        processingNotes = try container.decodeIfPresent(String.self, forKey: .processingNotes)
+        s3Key = try container.decodeIfPresent(String.self, forKey: .s3Key)
+        
+        // Handle date decoding with fallback
+        if let dateString = try? container.decode(String.self, forKey: .createdAt) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: dateString) {
+                createdAt = date
+            } else {
+                // Fallback to standard ISO8601 format
+                let fallbackFormatter = ISO8601DateFormatter()
+                createdAt = fallbackFormatter.date(from: dateString) ?? Date()
+            }
+        } else {
+            createdAt = Date()
+        }
+        
+        if let dateString = try? container.decode(String.self, forKey: .updatedAt) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: dateString) {
+                updatedAt = date
+            } else {
+                // Fallback to standard ISO8601 format
+                let fallbackFormatter = ISO8601DateFormatter()
+                updatedAt = fallbackFormatter.date(from: dateString) ?? Date()
+            }
+        } else {
+            updatedAt = Date()
+        }
     }
 }
 

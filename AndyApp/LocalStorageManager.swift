@@ -28,7 +28,14 @@ class LocalStorageManager {
     // MARK: - Mail Package Management
     func saveMailPackage(_ mailPackage: MailPackage) {
         var packages = getMailPackages()
-        packages.append(mailPackage)
+        
+        // Check if package already exists and update it
+        if let existingIndex = packages.firstIndex(where: { $0.id == mailPackage.id }) {
+            packages[existingIndex] = mailPackage
+        } else {
+            packages.append(mailPackage)
+        }
+        
         saveMailPackages(packages)
     }
     

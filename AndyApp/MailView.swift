@@ -24,10 +24,8 @@ struct MailView: View {
                         icon: "mail",
                         title: "No Mail Scanned",
                         message: "Tap the camera button to scan your first mail package.",
-                        actionTitle: "Scan Mail",
-                        action: {
-                            showingCamera = true
-                        }
+                        actionTitle: nil,
+                        action: nil
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -36,15 +34,19 @@ struct MailView: View {
                             // Loading card at the top when processing
                             if viewModel.isProcessing {
                                 ProcessingCard()
+                                    .transition(.opacity.combined(with: .scale))
+                                    .animation(.easeInOut(duration: 0.3), value: viewModel.isProcessing)
                             }
                             
                             ForEach(viewModel.mailPackages) { mailPackage in
                                 MailPackageCard(mailPackage: mailPackage) {
                                     viewModel.selectMailPackage(mailPackage)
                                 }
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
                             }
                         }
                         .padding(AppSpacing.lg)
+                        .animation(.easeInOut(duration: 0.3), value: viewModel.mailPackages.count)
                     }
                 }
             }
@@ -101,8 +103,11 @@ struct MailView: View {
                     },
                     onCancel: {
                         viewModel.showingSurvey = false
+                        // If survey is cancelled, still mark processing as complete
+                        viewModel.isProcessing = false
                     }
                 )
+                .interactiveDismissDisabled()
             }
         }
     }
@@ -285,9 +290,17 @@ class MailViewModel: ObservableObject {
         Task { @MainActor in
             let localPackages = LocalStorageManager.shared.getMailPackages()
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.isLoading = false
-                self?.mailPackages = localPackages
+            // Only update if we have packages or if we're not currently processing
+            if !localPackages.isEmpty || !self.isProcessing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.isLoading = false
+                    self?.mailPackages = localPackages
+                }
+            } else {
+                // If we're processing, just stop loading but keep existing packages
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.isLoading = false
+                }
             }
         }
     }
@@ -336,15 +349,39 @@ class MailViewModel: ObservableObject {
             
             print("🤖 AI processing completed, showing survey...")
             
+            // Update the mail package with the industry from processing result
+            let updatedMailPackage = MailPackage(
+                id: mailPackage.id,
+                panelistId: mailPackage.panelistId,
+                packageName: mailPackage.packageName,
+                packageDescription: mailPackage.packageDescription,
+                industry: processingResult.industry,
+                brandName: mailPackage.brandName,
+                primaryOffer: mailPackage.primaryOffer,
+                companyValidated: mailPackage.companyValidated,
+                responseIntention: mailPackage.responseIntention,
+                nameCheck: mailPackage.nameCheck,
+                status: mailPackage.status,
+                pointsAwarded: mailPackage.pointsAwarded,
+                isApproved: mailPackage.isApproved,
+                processingStatus: mailPackage.processingStatus,
+                createdAt: mailPackage.createdAt,
+                updatedAt: mailPackage.updatedAt,
+                s3Key: mailPackage.s3Key
+            )
+            
             // Show survey with processing results
             await MainActor.run {
                 self.processingResult = processingResult
                 self.currentMailPackageId = mailPackage.id
                 self.showingSurvey = true
-                self.isProcessing = false
                 
-                // Add the new mail package to the list
-                self.mailPackages.append(mailPackage)
+                // Add the new mail package to the list and save to local storage
+                self.mailPackages.append(updatedMailPackage)
+                LocalStorageManager.shared.saveMailPackage(updatedMailPackage)
+                
+                // Keep processing state true until survey is completed
+                // self.isProcessing = false  // Don't set to false yet
             }
             
         } catch {
@@ -363,14 +400,22 @@ class MailViewModel: ObservableObject {
             updatedSurvey.mailPackageId = mailPackageId
             
             // Update mail package with survey results
-            _ = try await mailProcessingService.updateMailPackageWithSurvey(
+            let updatedPackage = try await mailProcessingService.updateMailPackageWithSurvey(
                 mailPackageId: mailPackageId,
                 survey: updatedSurvey
             )
             
-            // Refresh the mail packages list
+            // Update the local mail package with survey results
             await MainActor.run {
-                loadMailPackages()
+                // Find and update the existing package in the list
+                if let index = self.mailPackages.firstIndex(where: { $0.id == mailPackageId }) {
+                    self.mailPackages[index] = updatedPackage
+                    // Save the updated package to local storage
+                    LocalStorageManager.shared.saveMailPackage(updatedPackage)
+                }
+                
+                // Now that survey is completed, set processing to false
+                self.isProcessing = false
             }
             
         } catch {
