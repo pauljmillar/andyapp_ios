@@ -59,7 +59,7 @@ class LocalStorageManager {
     }
     
     // MARK: - Mail Scan Management
-    func saveMailScans(images: [UIImage], mailPackageId: String, timestamp: String) -> [String] {
+    func saveMailScans(images: [UIImage], mailPackageId: String, timestamp: String) async -> [String] {
         createUserDirectoryIfNeeded()
         
         var savedPaths: [String] = []
@@ -72,7 +72,8 @@ class LocalStorageManager {
             if let imageData = image.jpegData(compressionQuality: 0.8) {
                 do {
                     try imageData.write(to: URL(fileURLWithPath: filePath))
-                    savedPaths.append(filePath)
+                    // Store relative path instead of absolute path
+                    savedPaths.append(fileName)
                     print("✅ Saved mail scan: \(fileName)")
                 } catch {
                     print("❌ Failed to save mail scan \(fileName): \(error)")
@@ -84,7 +85,20 @@ class LocalStorageManager {
     }
     
     func getMailScanImage(at path: String) -> UIImage? {
-        return UIImage(contentsOfFile: path)
+        // If path is already absolute, try it first (for backward compatibility)
+        if path.hasPrefix("/") {
+            if let image = UIImage(contentsOfFile: path) {
+                return image
+            }
+            // If absolute path fails, try to extract filename and use relative path
+            let fileName = URL(fileURLWithPath: path).lastPathComponent
+            let relativePath = "\(userStoragePath)/\(fileName)"
+            return UIImage(contentsOfFile: relativePath)
+        }
+        
+        // Otherwise, treat it as a relative path and construct the full path
+        let fullPath = "\(userStoragePath)/\(path)"
+        return UIImage(contentsOfFile: fullPath)
     }
     
     // MARK: - Directory Management
@@ -98,6 +112,61 @@ class LocalStorageManager {
             } catch {
                 print("❌ Failed to create user mail directory: \(error)")
             }
+        }
+    }
+    
+    // MARK: - Migration
+    func migrateImagePathsIfNeeded() {
+        let packages = getMailPackages()
+        var needsUpdate = false
+        var updatedPackages: [MailPackage] = []
+        
+        for package in packages {
+            var updatedPackage = package
+            
+            if let imagePaths = package.imagePaths {
+                var updatedImagePaths: [String] = []
+                
+                for path in imagePaths {
+                    if path.hasPrefix("/") {
+                        // Convert absolute path to relative path
+                        let fileName = URL(fileURLWithPath: path).lastPathComponent
+                        updatedImagePaths.append(fileName)
+                        needsUpdate = true
+                        print("🔄 Migrating image path: \(path) -> \(fileName)")
+                    } else {
+                        updatedImagePaths.append(path)
+                    }
+                }
+                
+                updatedPackage = MailPackage(
+                    id: package.id,
+                    panelistId: package.panelistId,
+                    packageName: package.packageName,
+                    packageDescription: package.packageDescription,
+                    industry: package.industry,
+                    brandName: package.brandName,
+                    primaryOffer: package.primaryOffer,
+                    companyValidated: package.companyValidated,
+                    responseIntention: package.responseIntention,
+                    nameCheck: package.nameCheck,
+                    status: package.status,
+                    pointsAwarded: package.pointsAwarded,
+                    isApproved: package.isApproved,
+                    processingStatus: package.processingStatus,
+                    createdAt: package.createdAt,
+                    updatedAt: package.updatedAt,
+                    s3Key: package.s3Key,
+                    imagePaths: updatedImagePaths
+                )
+            }
+            
+            updatedPackages.append(updatedPackage)
+        }
+        
+        if needsUpdate {
+            saveMailPackages(updatedPackages)
+            print("✅ Migrated image paths for \(updatedPackages.count) mail packages")
         }
     }
     

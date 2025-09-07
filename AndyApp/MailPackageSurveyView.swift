@@ -10,7 +10,6 @@ import SwiftUI
 struct MailPackageSurveyView: View {
     let processingResult: ProcessingResult
     let onSurveyCompleted: (MailPackageSurvey) -> Void
-    let onCancel: () -> Void
     
     @State private var recipientAnswer: String = ""
     @State private var brandNameAnswer: String = ""
@@ -19,20 +18,6 @@ struct MailPackageSurveyView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: AppSpacing.xl) {
-                // Header
-                VStack(spacing: AppSpacing.md) {
-                    Text("📬 Mail Package Survey")
-                        .font(AppTypography.largeTitle)
-                        .foregroundColor(AppColors.textPrimary)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("Please answer a few questions about this mail piece")
-                        .font(AppTypography.body)
-                        .foregroundColor(AppColors.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, AppSpacing.xl)
-                
                 // Survey Questions
                 VStack(spacing: AppSpacing.xl) {
                     // Question 1: Recipient Name
@@ -129,6 +114,7 @@ struct MailPackageSurveyView: View {
                     .cornerRadius(AppCornerRadius.medium)
                 }
                 .padding(.horizontal, AppSpacing.lg)
+                .padding(.top, AppSpacing.lg)
                 
                 Spacer()
                 
@@ -140,12 +126,6 @@ struct MailPackageSurveyView: View {
                     .buttonStyle(PrimaryButtonStyle())
                     .frame(maxWidth: .infinity)
                     .disabled(!canSubmit)
-                    
-                    Button("Cancel") {
-                        onCancel()
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, AppSpacing.lg)
                 .padding(.bottom, AppSpacing.xl)
@@ -227,7 +207,6 @@ struct RadioButton: View {
             urgencyLevel: "medium",
             estimatedValue: "$50"
         ),
-        onSurveyCompleted: { _ in },
-        onCancel: {}
+        onSurveyCompleted: { _ in }
     )
 }

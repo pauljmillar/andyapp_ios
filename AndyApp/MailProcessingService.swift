@@ -70,6 +70,13 @@ class MailProcessingService: ObservableObject {
         
         print("🆔 Mail package ID extracted: \(finalMailPackageId)")
         
+        // Save images locally and get their paths
+        let imagePaths = await LocalStorageManager.shared.saveMailScans(
+            images: images,
+            mailPackageId: finalMailPackageId,
+            timestamp: timestamp
+        )
+        
         // Create a placeholder mail package (will be updated after AI processing)
         let placeholderPackage = MailPackage(
             id: finalMailPackageId,
@@ -86,7 +93,8 @@ class MailProcessingService: ObservableObject {
             isApproved: false,
             createdAt: Date(),
             updatedAt: Date(),
-            s3Key: nil
+            s3Key: nil,
+            imagePaths: imagePaths
         )
         
         return placeholderPackage

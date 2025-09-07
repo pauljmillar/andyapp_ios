@@ -856,6 +856,7 @@ struct MailPackage: Codable, Identifiable {
     let createdAt: Date
     let updatedAt: Date
     let s3Key: String?
+    let imagePaths: [String]? // Local file paths to scanned images
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -877,9 +878,10 @@ struct MailPackage: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case s3Key = "s3_key"
+        case imagePaths = "image_paths"
     }
     
-    init(id: String, panelistId: String, packageName: String? = nil, packageDescription: String? = nil, industry: String? = nil, brandName: String? = nil, primaryOffer: String? = nil, companyValidated: Bool? = nil, responseIntention: String? = nil, nameCheck: String? = nil, status: String = "pending", pointsAwarded: Int? = nil, isApproved: Bool = false, processingStatus: ProcessingStatus? = nil, createdAt: Date = Date(), updatedAt: Date = Date(), s3Key: String? = nil) {
+    init(id: String, panelistId: String, packageName: String? = nil, packageDescription: String? = nil, industry: String? = nil, brandName: String? = nil, primaryOffer: String? = nil, companyValidated: Bool? = nil, responseIntention: String? = nil, nameCheck: String? = nil, status: String = "pending", pointsAwarded: Int? = nil, isApproved: Bool = false, processingStatus: ProcessingStatus? = nil, createdAt: Date = Date(), updatedAt: Date = Date(), s3Key: String? = nil, imagePaths: [String]? = nil) {
         self.id = id
         self.panelistId = panelistId
         self.packageName = packageName
@@ -899,6 +901,7 @@ struct MailPackage: Codable, Identifiable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.s3Key = s3Key
+        self.imagePaths = imagePaths
     }
     
     init(from decoder: Decoder) throws {
@@ -921,6 +924,7 @@ struct MailPackage: Codable, Identifiable {
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
         processingNotes = try container.decodeIfPresent(String.self, forKey: .processingNotes)
         s3Key = try container.decodeIfPresent(String.self, forKey: .s3Key)
+        imagePaths = try container.decodeIfPresent([String].self, forKey: .imagePaths)
         
         // Handle date decoding with fallback
         if let dateString = try? container.decode(String.self, forKey: .createdAt) {

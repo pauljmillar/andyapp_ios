@@ -12,6 +12,7 @@ struct MainTabView: View {
     @State private var selectedTab = 0
     @State private var showingProfileMenu = false
     @State private var selectedFilter: String?
+    @State private var mailIndustries: [String] = []
     
     var body: some View {
         ZStack {
@@ -48,12 +49,17 @@ struct MainTabView: View {
                         }
                         .tag(1)
                     
-                    MailView()
-                        .tabItem {
-                            Image(systemName: "envelope.fill")
-                            Text("Mail")
-                        }
-                        .tag(2)
+                    MailView(
+                        onIndustriesChanged: { industries in
+                            mailIndustries = industries
+                        },
+                        selectedFilter: $selectedFilter
+                    )
+                    .tabItem {
+                        Image(systemName: "envelope.fill")
+                        Text("Mail")
+                    }
+                    .tag(2)
                     
                     RedeemView()
                         .tabItem {
@@ -98,7 +104,7 @@ struct MainTabView: View {
         switch selectedTab {
         case 0: return ["Technology", "Health", "Finance", "Entertainment", "Lifestyle"]
         case 1: return ["Available", "Completed"] // Survey-specific filters
-        case 2: return ["Important", "Unread", "System", "Updates"]
+        case 2: return mailIndustries // Dynamic industries from mail packages
         case 3: return ["Gift Cards", "Merchandise", "Donations", "Experiences"]
         default: return []
         }
