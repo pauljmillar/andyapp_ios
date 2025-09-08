@@ -35,7 +35,7 @@ struct MainTabView: View {
                 
                 // Main Tab View
                 TabView(selection: $selectedTab) {
-                    HomeView()
+                    HomeView(selectedTab: $selectedTab)
                         .tabItem {
                             Image(systemName: "house.fill")
                             Text("Home")

@@ -12,6 +12,7 @@ struct HomeView: View {
     @StateObject private var authManager = ClerkAuthManager.shared
     @StateObject private var viewModel = HomeViewModel()
     @State private var selectedCategory: String?
+    @Binding var selectedTab: Int
     
     var body: some View {
         ScrollView {
@@ -60,55 +61,70 @@ struct HomeView: View {
                             .cornerRadius(AppCornerRadius.medium)
                             
                             // Top right - Redeemed
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text("redeemed")
-                                    .font(AppTypography.caption1)
-                                    .foregroundColor(.white)
-                                
-                                Text("\(authManager.currentUser?.totalRedeemed ?? 0)")
-                                    .font(AppTypography.title3)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
+                            Button(action: {
+                                selectedTab = 3 // Navigate to Redeem tab
+                            }) {
+                                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                    Text("redeemed")
+                                        .font(AppTypography.caption1)
+                                        .foregroundColor(.white)
+                                    
+                                    Text("\(authManager.currentUser?.totalRedeemed ?? 0)")
+                                        .font(AppTypography.title3)
+                                        .foregroundColor(.white)
+                                        .fontWeight(.bold)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(AppSpacing.md)
+                                .background(Color(hex: "#1e3264"))
+                                .cornerRadius(AppCornerRadius.medium)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(AppSpacing.md)
-                            .background(Color(hex: "#1e3264"))
-                            .cornerRadius(AppCornerRadius.medium)
+                            .buttonStyle(PlainButtonStyle())
                         }
                         
                         // Bottom row
                         HStack(spacing: AppSpacing.sm) {
                             // Bottom left - Scans
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text("scans")
-                                    .font(AppTypography.caption1)
-                                    .foregroundColor(.white)
-                                
-                                Text("\(authManager.currentUser?.totalScans ?? 0)")
-                                    .font(AppTypography.title3)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
+                            Button(action: {
+                                selectedTab = 2 // Navigate to Mail tab
+                            }) {
+                                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                    Text("scans")
+                                        .font(AppTypography.caption1)
+                                        .foregroundColor(.white)
+                                    
+                                    Text("\(authManager.currentUser?.totalScans ?? 0)")
+                                        .font(AppTypography.title3)
+                                        .foregroundColor(.white)
+                                        .fontWeight(.bold)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(AppSpacing.md)
+                                .background(Color(hex: "#8400e7"))
+                                .cornerRadius(AppCornerRadius.medium)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(AppSpacing.md)
-                            .background(Color(hex: "#8400e7"))
-                            .cornerRadius(AppCornerRadius.medium)
+                            .buttonStyle(PlainButtonStyle())
                             
                             // Bottom right - Surveys
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text("surveys")
-                                    .font(AppTypography.caption1)
-                                    .foregroundColor(.white)
-                                
-                                Text("\(authManager.currentUser?.surveysCompleted ?? 0)")
-                                    .font(AppTypography.title3)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
+                            Button(action: {
+                                selectedTab = 1 // Navigate to Survey tab
+                            }) {
+                                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                    Text("surveys")
+                                        .font(AppTypography.caption1)
+                                        .foregroundColor(.white)
+                                    
+                                    Text("\(authManager.currentUser?.surveysCompleted ?? 0)")
+                                        .font(AppTypography.title3)
+                                        .foregroundColor(.white)
+                                        .fontWeight(.bold)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(AppSpacing.md)
+                                .background(Color(hex: "#006450"))
+                                .cornerRadius(AppCornerRadius.medium)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(AppSpacing.md)
-                            .background(Color(hex: "#006450"))
-                            .cornerRadius(AppCornerRadius.medium)
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding(.horizontal, AppSpacing.lg)
@@ -122,8 +138,7 @@ struct HomeView: View {
                         .padding(.horizontal, AppSpacing.lg)
                     
                     Button(action: {
-                        // Navigate to Mail view
-                        // TODO: Implement navigation to Mail tab
+                        selectedTab = 2 // Navigate to Mail tab
                     }) {
                         VStack(alignment: .leading, spacing: AppSpacing.sm) {
                             Text("Earn more points today by scanning your junk mail now!")
@@ -150,7 +165,7 @@ struct HomeView: View {
                         Spacer()
                         
                         Button("View All") {
-                            // Navigate to survey tab
+                            selectedTab = 1 // Navigate to Survey tab
                         }
                         .font(AppTypography.body)
                         .foregroundColor(AppColors.primaryGreen)
@@ -435,6 +450,6 @@ struct StatCard: View {
 
 #Preview {
     NavigationView {
-        HomeView()
+        HomeView(selectedTab: .constant(0))
     }
 }
