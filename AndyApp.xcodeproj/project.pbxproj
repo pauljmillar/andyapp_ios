@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B20A940D2E6E7A69004FE023 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = B20A940C2E6E7A69004FE023 /* FirebaseAnalytics */; };
+		B20A940F2E6E7A69004FE023 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = B20A940E2E6E7A69004FE023 /* FirebaseAppDistribution-Beta */; };
+		B20A94112E6E7A69004FE023 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = B20A94102E6E7A69004FE023 /* FirebaseCrashlytics */; };
 		B2BA54342E64BAC40093400E /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = B2BA54332E64BAC40093400E /* Clerk */; };
 /* End PBXBuildFile section */
 
@@ -27,7 +30,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B20A940D2E6E7A69004FE023 /* FirebaseAnalytics in Frameworks */,
+				B20A94112E6E7A69004FE023 /* FirebaseCrashlytics in Frameworks */,
 				B2BA54342E64BAC40093400E /* Clerk in Frameworks */,
+				B20A940F2E6E7A69004FE023 /* FirebaseAppDistribution-Beta in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +77,9 @@
 			name = AndyApp;
 			packageProductDependencies = (
 				B2BA54332E64BAC40093400E /* Clerk */,
+				B20A940C2E6E7A69004FE023 /* FirebaseAnalytics */,
+				B20A940E2E6E7A69004FE023 /* FirebaseAppDistribution-Beta */,
+				B20A94102E6E7A69004FE023 /* FirebaseCrashlytics */,
 			);
 			productName = AndyApp;
 			productReference = B2BA54072E6411F80093400E /* AndyApp.app */;
@@ -102,6 +111,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B2BA54322E64BAC40093400E /* XCRemoteSwiftPackageReference "clerk-ios" */,
+				B20A940B2E6E7A69004FE023 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B2BA54082E6411F80093400E /* Products */;
@@ -339,6 +349,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		B20A940B2E6E7A69004FE023 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.2.0;
+			};
+		};
 		B2BA54322E64BAC40093400E /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/clerk/clerk-ios";
@@ -350,6 +368,21 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B20A940C2E6E7A69004FE023 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B20A940B2E6E7A69004FE023 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		B20A940E2E6E7A69004FE023 /* FirebaseAppDistribution-Beta */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B20A940B2E6E7A69004FE023 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = "FirebaseAppDistribution-Beta";
+		};
+		B20A94102E6E7A69004FE023 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B20A940B2E6E7A69004FE023 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
 		B2BA54332E64BAC40093400E /* Clerk */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B2BA54322E64BAC40093400E /* XCRemoteSwiftPackageReference "clerk-ios" */;

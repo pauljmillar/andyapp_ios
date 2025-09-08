@@ -73,8 +73,8 @@ struct PanelistProfile: Codable {
 }
 
 struct ProfileData: Codable {
-    let firstName: String
-    let lastName: String
+    let firstName: String?
+    let lastName: String?
     let age: Int?
     let gender: String?
     let location: Location?
