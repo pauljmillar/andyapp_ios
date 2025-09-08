@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AndyApp.ipa</key>
+	<array>
+		<dict>
+			<key>architectures</key>
+			<array>
+				<string>arm64</string>
+			</array>
+			<key>buildNumber</key>
+			<string>3</string>
+			<key>certificate</key>
+			<dict>
+				<key>SHA1</key>
+				<string>01DA1BD013B7CD542DFE18BCC7DB5F748D3B5E9B</string>
+				<key>dateExpires</key>
+				<string>9/7/26</string>
+				<key>type</key>
+				<string>Cloud Managed Apple Distribution</string>
+			</dict>
+			<key>embeddedBinaries</key>
+			<array>
+				<dict>
+					<key>architectures</key>
+					<array>
+						<string>arm64</string>
+					</array>
+					<key>buildNumber</key>
+					<string>1</string>
+					<key>certificate</key>
+					<dict>
+						<key>SHA1</key>
+						<string>01DA1BD013B7CD542DFE18BCC7DB5F748D3B5E9B</string>
+						<key>dateExpires</key>
+						<string>9/7/26</string>
+						<key>type</key>
+						<string>Cloud Managed Apple Distribution</string>
+					</dict>
+					<key>name</key>
+					<string>FirebaseAnalytics.framework</string>
+					<key>team</key>
+					<dict>
+						<key>id</key>
+						<string>S2TL9GZBBN</string>
+						<key>name</key>
+						<string>Paul Millar</string>
+					</dict>
+					<key>versionNumber</key>
+					<string>12.2.0</string>
+				</dict>
+				<dict>
+					<key>architectures</key>
+					<array>
+						<string>arm64</string>
+					</array>
+					<key>buildNumber</key>
+					<string>2.3.0</string>
+					<key>certificate</key>
+					<dict>
+						<key>SHA1</key>
+						<string>01DA1BD013B7CD542DFE18BCC7DB5F748D3B5E9B</string>
+						<key>dateExpires</key>
+						<string>9/7/26</string>
+						<key>type</key>
+						<string>Cloud Managed Apple Distribution</string>
+					</dict>
+					<key>name</key>
+					<string>GoogleAdsOnDeviceConversion.framework</string>
+					<key>team</key>
+					<dict>
+						<key>id</key>
+						<string>S2TL9GZBBN</string>
+						<key>name</key>
+						<string>Paul Millar</string>
+					</dict>
+					<key>versionNumber</key>
+					<string>2.3.0</string>
+				</dict>
+				<dict>
+					<key>architectures</key>
+					<array>
+						<string>arm64</string>
+					</array>
+					<key>buildNumber</key>
+					<string>1</string>
+					<key>certificate</key>
+					<dict>
+						<key>SHA1</key>
+						<string>01DA1BD013B7CD542DFE18BCC7DB5F748D3B5E9B</string>
+						<key>dateExpires</key>
+						<string>9/7/26</string>
+						<key>type</key>
+						<string>Cloud Managed Apple Distribution</string>
+					</dict>
+					<key>name</key>
+					<string>GoogleAppMeasurement.framework</string>
+					<key>team</key>
+					<dict>
+						<key>id</key>
+						<string>S2TL9GZBBN</string>
+						<key>name</key>
+						<string>Paul Millar</string>
+					</dict>
+					<key>versionNumber</key>
+					<string>12.2.0</string>
+				</dict>
+				<dict>
+					<key>architectures</key>
+					<array>
+						<string>arm64</string>
+					</array>
+					<key>buildNumber</key>
+					<string>1</string>
+					<key>certificate</key>
+					<dict>
+						<key>SHA1</key>
+						<string>01DA1BD013B7CD542DFE18BCC7DB5F748D3B5E9B</string>
+						<key>dateExpires</key>
+						<string>9/7/26</string>
+						<key>type</key>
+						<string>Cloud Managed Apple Distribution</string>
+					</dict>
+					<key>name</key>
+					<string>GoogleAppMeasurementIdentitySupport.framework</string>
+					<key>team</key>
+					<dict>
+						<key>id</key>
+						<string>S2TL9GZBBN</string>
+						<key>name</key>
+						<string>Paul Millar</string>
+					</dict>
+					<key>versionNumber</key>
+					<string>12.2.0</string>
+				</dict>
+			</array>
+			<key>entitlements</key>
+			<dict>
+				<key>application-identifier</key>
+				<string>S2TL9GZBBN.com.signalm.andyappv0</string>
+				<key>com.apple.developer.team-identifier</key>
+				<string>S2TL9GZBBN</string>
+				<key>get-task-allow</key>
+				<false/>
+			</dict>
+			<key>name</key>
+			<string>AndyApp.app</string>
+			<key>profile</key>
+			<dict>
+				<key>UUID</key>
+				<string>ba5ec152-725e-4d92-8e05-87ec73f4cdb0</string>
+				<key>dateExpires</key>
+				<string>9/7/26</string>
+				<key>name</key>
+				<string>iOS Team Ad Hoc Provisioning Profile: com.signalm.andyappv0</string>
+			</dict>
+			<key>team</key>
+			<dict>
+				<key>id</key>
+				<string>S2TL9GZBBN</string>
+				<key>name</key>
+				<string>Paul Millar</string>
+			</dict>
+			<key>versionNumber</key>
+			<string>0.0.5</string>
+		</dict>
+	</array>
+</dict>
+</plist>
