@@ -115,6 +115,8 @@ struct MainTabView: View {
 struct ProfileMenuView: View {
     @Binding var isShowing: Bool
     @StateObject private var authManager = ClerkAuthManager.shared
+    @State private var showingFCMTokenAlert = false
+    @State private var fcmToken = ""
     
     var body: some View {
         ZStack {
@@ -252,6 +254,22 @@ struct ProfileMenuView: View {
                                 Text("Built \(BuildInfo.buildDate)")
                                     .font(AppTypography.caption2)
                                     .foregroundColor(AppColors.textSecondary)
+                                
+                                // FCM Token for testing
+                                Button("Show FCM Token") {
+                                    Task {
+                                        if let token = await PushNotificationManager.shared.getFCMToken() {
+                                            print("FCM Token: \(token)")
+                                            // Show in alert
+                                            DispatchQueue.main.async {
+                                                showingFCMTokenAlert = true
+                                                fcmToken = token
+                                            }
+                                        }
+                                    }
+                                }
+                                .font(AppTypography.caption2)
+                                .foregroundColor(AppColors.primaryGreen)
                             }
                             .padding(.horizontal, AppSpacing.lg)
                             .padding(.vertical, AppSpacing.sm)
@@ -267,6 +285,14 @@ struct ProfileMenuView: View {
                 
                 Spacer()
             }
+        }
+        .alert("FCM Token", isPresented: $showingFCMTokenAlert) {
+            Button("Copy") {
+                UIPasteboard.general.string = fcmToken
+            }
+            Button("OK") { }
+        } message: {
+            Text(fcmToken)
         }
     }
 }
