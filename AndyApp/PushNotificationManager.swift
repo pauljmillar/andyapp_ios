@@ -59,6 +59,20 @@ class PushNotificationManager: ObservableObject {
                 await MainActor.run {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
+                
+                // Wait a bit and try again
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                
+                do {
+                    let retryToken = try await Messaging.messaging().token()
+                    await MainActor.run {
+                        self.fcmToken = retryToken
+                    }
+                    print("✅ FCM token retrieved on retry: \(retryToken)")
+                    return retryToken
+                } catch {
+                    print("❌ Still no FCM token after retry: \(error)")
+                }
             }
             
             return nil

@@ -13,6 +13,7 @@ import UserNotifications
 @main
 struct AndyAppApp: App {
     @StateObject private var authManager = ClerkAuthManager.shared
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     init() {
         // Configure Firebase
@@ -37,12 +38,6 @@ struct AndyAppApp: App {
     
     // MARK: - Push Notifications Setup
     private func setupPushNotifications() {
-        // Set messaging delegate first
-        Messaging.messaging().delegate = NotificationDelegate.shared
-        
-        // Set notification center delegate
-        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
-        
         // Request notification permissions
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             if granted {

@@ -17,28 +17,6 @@ class NotificationDelegate: NSObject, MessagingDelegate, UNUserNotificationCente
         super.init()
     }
     
-    // MARK: - APNS Token Handling
-    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        print("📱 APNS device token received: \(deviceToken.map { String(format: "%02.2hhx", $0) }.joined())")
-        
-        // Set the APNS token for Firebase Messaging
-        Messaging.messaging().apnsToken = deviceToken
-        
-        // Now we can get the FCM token
-        Messaging.messaging().token { token, error in
-            if let error = error {
-                print("❌ Error getting FCM token: \(error)")
-            } else if let token = token {
-                print("🔥 FCM Registration Token: \(token)")
-                // Send token to server
-                self.sendTokenToServer(token)
-            }
-        }
-    }
-    
-    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("❌ Failed to register for remote notifications: \(error)")
-    }
     
     // MARK: - MessagingDelegate
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
@@ -46,11 +24,13 @@ class NotificationDelegate: NSObject, MessagingDelegate, UNUserNotificationCente
         
         // Send token to your server
         if let token = fcmToken {
-            sendTokenToServer(token)
+            Task {
+                await sendTokenToServer(token)
+            }
         }
     }
     
-    private func sendTokenToServer(_ token: String) {
+    func sendTokenToServer(_ token: String) async {
         // TODO: Send FCM token to your backend server
         // This allows your server to send push notifications to this device
         print("📤 Sending FCM token to server: \(token)")
