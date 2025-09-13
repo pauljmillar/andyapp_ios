@@ -265,6 +265,12 @@ struct ProfileMenuView: View {
                                                 showingFCMTokenAlert = true
                                                 fcmToken = token
                                             }
+                                        } else {
+                                            // Show error message
+                                            DispatchQueue.main.async {
+                                                showingFCMTokenAlert = true
+                                                fcmToken = "FCM token not available. Make sure you're on a physical device and have granted notification permissions."
+                                            }
                                         }
                                     }
                                 }

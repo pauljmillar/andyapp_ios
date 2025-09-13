@@ -52,6 +52,15 @@ class PushNotificationManager: ObservableObject {
             return token
         } catch {
             print("❌ Error getting FCM token: \(error)")
+            
+            // If APNS token is not available, try to register for remote notifications
+            if error.localizedDescription.contains("No APNS token") {
+                print("🔄 APNS token not available, attempting to register for remote notifications...")
+                await MainActor.run {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            }
+            
             return nil
         }
     }

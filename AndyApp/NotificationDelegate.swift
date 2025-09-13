@@ -8,12 +8,36 @@
 import Foundation
 import FirebaseMessaging
 import UserNotifications
+import UIKit
 
 class NotificationDelegate: NSObject, MessagingDelegate, UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
     
     private override init() {
         super.init()
+    }
+    
+    // MARK: - APNS Token Handling
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        print("📱 APNS device token received: \(deviceToken.map { String(format: "%02.2hhx", $0) }.joined())")
+        
+        // Set the APNS token for Firebase Messaging
+        Messaging.messaging().apnsToken = deviceToken
+        
+        // Now we can get the FCM token
+        Messaging.messaging().token { token, error in
+            if let error = error {
+                print("❌ Error getting FCM token: \(error)")
+            } else if let token = token {
+                print("🔥 FCM Registration Token: \(token)")
+                // Send token to server
+                self.sendTokenToServer(token)
+            }
+        }
+    }
+    
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        print("❌ Failed to register for remote notifications: \(error)")
     }
     
     // MARK: - MessagingDelegate
