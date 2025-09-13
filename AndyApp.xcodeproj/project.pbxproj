@@ -10,6 +10,7 @@
 		B20A940D2E6E7A69004FE023 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = B20A940C2E6E7A69004FE023 /* FirebaseAnalytics */; };
 		B20A940F2E6E7A69004FE023 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = B20A940E2E6E7A69004FE023 /* FirebaseAppDistribution-Beta */; };
 		B20A94112E6E7A69004FE023 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = B20A94102E6E7A69004FE023 /* FirebaseCrashlytics */; };
+		B22F9F0B2E75D14500B42AC1 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = B22F9F0A2E75D14500B42AC1 /* FirebaseMessaging */; };
 		B2BA54342E64BAC40093400E /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = B2BA54332E64BAC40093400E /* Clerk */; };
 /* End PBXBuildFile section */
 
@@ -32,6 +33,7 @@
 			files = (
 				B20A940D2E6E7A69004FE023 /* FirebaseAnalytics in Frameworks */,
 				B20A94112E6E7A69004FE023 /* FirebaseCrashlytics in Frameworks */,
+				B22F9F0B2E75D14500B42AC1 /* FirebaseMessaging in Frameworks */,
 				B2BA54342E64BAC40093400E /* Clerk in Frameworks */,
 				B20A940F2E6E7A69004FE023 /* FirebaseAppDistribution-Beta in Frameworks */,
 			);
@@ -80,6 +82,7 @@
 				B20A940C2E6E7A69004FE023 /* FirebaseAnalytics */,
 				B20A940E2E6E7A69004FE023 /* FirebaseAppDistribution-Beta */,
 				B20A94102E6E7A69004FE023 /* FirebaseCrashlytics */,
+				B22F9F0A2E75D14500B42AC1 /* FirebaseMessaging */,
 			);
 			productName = AndyApp;
 			productReference = B2BA54072E6411F80093400E /* AndyApp.app */;
@@ -299,6 +302,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = AndyApp/AndyAppRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
@@ -382,6 +386,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B20A940B2E6E7A69004FE023 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCrashlytics;
+		};
+		B22F9F0A2E75D14500B42AC1 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B20A940B2E6E7A69004FE023 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 		B2BA54332E64BAC40093400E /* Clerk */ = {
 			isa = XCSwiftPackageProductDependency;
