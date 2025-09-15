@@ -51,6 +51,7 @@ import VisionKit
 struct MailView: View {
     @StateObject private var viewModel = MailViewModel()
     @State private var showingCamera = false
+    @State private var showingScanningTips = false
     let onIndustriesChanged: ([String]) -> Void
     @Binding var selectedFilter: String?
     
@@ -82,14 +83,38 @@ struct MailView: View {
                     LoadingView(message: "Loading mail...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if viewModel.mailPackages.isEmpty {
-                    EmptyStateView(
-                        icon: "mail",
-                        title: "No Mail Scanned",
-                        message: "Tap the camera button to scan your first mail package.",
-                        actionTitle: nil,
-                        action: nil
-                    )
+                    VStack(spacing: AppSpacing.lg) {
+                        Image(systemName: "mail")
+                            .font(.system(size: 48))
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        Text("No Mail Scanned")
+                            .font(AppTypography.title2)
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        VStack(spacing: AppSpacing.sm) {
+                            Text("Tap the camera to scan your first mail package.")
+                                .font(AppTypography.body)
+                                .foregroundColor(AppColors.textSecondary)
+                                .multilineTextAlignment(.center)
+                            
+                            Button(action: { showingScanningTips = true }) {
+                                HStack(spacing: AppSpacing.xs) {
+                                    Image(systemName: "questionmark.circle")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(AppColors.textSecondary)
+                                    
+                                    Text("Click here for scanning tips.")
+                                        .font(AppTypography.body)
+                                        .foregroundColor(AppColors.textSecondary)
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(AppSpacing.xl)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(AppColors.background)
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 1) {
@@ -148,6 +173,9 @@ struct MailView: View {
                     .padding(.bottom, 80) // Above bottom tab bar
                 }
             }
+        }
+        .sheet(isPresented: $showingScanningTips) {
+            ScanningTipsView()
         }
         .onAppear {
             LocalStorageManager.shared.migrateImagePathsIfNeeded()
@@ -550,6 +578,7 @@ struct CameraView: View {
     @State private var capturedImages: [UIImage] = []
     @State private var showingDocumentScanner = false
     @State private var showingCustomCamera = false
+    @State private var showingScanningTips = false
     
     var body: some View {
         NavigationView {

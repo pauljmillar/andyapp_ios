@@ -11,13 +11,14 @@ struct TopNavigationView: View {
     let title: String
     let showProfileMenu: () -> Void
     let showNotifications: () -> Void
+    let showHelp: (() -> Void)?
     let filterCategories: [String]
     @Binding var selectedFilter: String?
     @StateObject private var authManager = AuthManager.shared
     
     var body: some View {
         VStack(spacing: 0) {
-            // Top row: Profile circle, title, notification
+            // Top row: Profile circle, title, help button, notification
             HStack(spacing: AppSpacing.md) {
                 // Profile circle
                 Button(action: showProfileMenu) {
@@ -40,6 +41,16 @@ struct TopNavigationView: View {
                     .fontWeight(.bold)
                 
                 Spacer()
+                
+                // Help button (only for Mail tab)
+                if let showHelp = showHelp {
+                    Button(action: showHelp) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 18))
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
                 
                 // Notification icon
                 Button(action: showNotifications) {
@@ -121,6 +132,7 @@ struct FilterPill: View {
         title: "Home",
         showProfileMenu: {},
         showNotifications: {},
+        showHelp: nil,
         filterCategories: ["Technology", "Health", "Finance", "Entertainment"],
         selectedFilter: .constant(nil)
     )

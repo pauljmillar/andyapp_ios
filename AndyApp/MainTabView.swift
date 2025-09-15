@@ -13,6 +13,7 @@ struct MainTabView: View {
     @State private var showingProfileMenu = false
     @State private var selectedFilter: String?
     @State private var mailIndustries: [String] = []
+    @State private var showingScanningTips = false
     
     var body: some View {
         ZStack {
@@ -29,6 +30,9 @@ struct MainTabView: View {
                     showNotifications: {
                         // Placeholder for notifications
                     },
+                    showHelp: selectedTab == 2 ? {
+                        showingScanningTips = true
+                    } : nil,
                     filterCategories: filterCategories,
                     selectedFilter: $selectedFilter
                 )
@@ -87,6 +91,9 @@ struct MainTabView: View {
                     .zIndex(1000)
                     .ignoresSafeArea()
             }
+        }
+        .sheet(isPresented: $showingScanningTips) {
+            ScanningTipsView()
         }
     }
     
