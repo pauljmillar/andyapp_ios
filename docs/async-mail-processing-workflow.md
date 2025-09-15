@@ -208,8 +208,26 @@ enum MailPackageState {
 
 ### Mail Package Detail View
 - **scanning/processing**: Show basic info, no action buttons
-- **readyForSurvey**: Show "Confirm Details" button
+- **readyForSurvey**: Show "Confirm Details" button (moved to top of page)
 - **surveyComplete**: Show completed status, disabled button
+
+## Survey Questions
+
+### Question 1: Addressee Identification (Conditional)
+The first survey question uses the `recipient` field from the `/processing` API response, but **only shows if a specific addressee is detected**:
+
+**Condition**: Only shown if `recipient` is not null, not empty, and not "CURRENT RESIDENT"
+
+**Question**: "Who is **[addressee]**?"
+
+**Answer Options**:
+- "[addressee] is me"
+- "[addressee] is someone else in my house" 
+- "I don't know"
+
+**Behavior**: If no specific addressee is detected, this question is **omitted entirely** from the survey.
+
+**Question Numbering**: When Question 1 is omitted, the remaining questions are renumbered (Question 2 becomes Question 1, etc.).
 
 ## Implementation Status
 
@@ -227,6 +245,11 @@ enum MailPackageState {
 - [x] "Confirm Details" button in MailPackageDetailView
 - [x] Processing state visual indicators
 - [x] Dynamic text content based on processing state
+- [x] Real-time UI updates via notification system
+- [x] Sample image integration for testing
+- [x] Camera selection step (camera vs sample image)
+- [x] Enhanced survey questions with addressee options
+- [x] UI layout improvements (Confirm Details moved to top)
 
 ### 🚧 In Progress
 - [ ] Error handling and retry logic

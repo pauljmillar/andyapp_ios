@@ -229,9 +229,12 @@ struct MailView: View {
                 MailPackageSurveyView(
                     processingResult: result,
                     onSurveyCompleted: { survey in
+                        // Dismiss survey immediately for better UX
+                        viewModel.showingSurvey = false
+                        
+                        // Complete survey in background
                         Task {
                             await viewModel.completeSurvey(survey: survey, mailPackageId: viewModel.currentMailPackageId)
-                            viewModel.showingSurvey = false
                         }
                     }
                 )
@@ -691,9 +694,15 @@ class MailViewModel: ObservableObject {
             }
             
         } catch {
+            print("❌ Survey completion failed for package \(mailPackageId): \(error)")
+            
+            // Handle error gracefully - show error message to user
             await MainActor.run {
-                self.error = error.localizedDescription
+                self.error = "Failed to submit survey: \(error.localizedDescription)"
             }
+            
+            // Optionally, you could show a toast notification or alert here
+            // For now, we'll just log the error and let the user continue
         }
     }
 }
@@ -1664,6 +1673,11 @@ struct MailPackageDetailView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.lg) {
+                    // Confirm Details Button (only show when ready for survey) - moved to very top
+                    if mailPackage.asyncProcessingState == .readyForSurvey {
+                        confirmDetailsButton
+                    }
+                    
                     headerSection
                     
                     if !scannedImages.isEmpty {
@@ -1671,11 +1685,6 @@ struct MailPackageDetailView: View {
                     }
                     
                     packageDetailsSection
-                    
-                    // Confirm Details Button (only show when ready for survey)
-                    if mailPackage.asyncProcessingState == .readyForSurvey {
-                        confirmDetailsButton
-                    }
                 }
                 .padding(AppSpacing.lg)
             }

@@ -11,49 +11,74 @@ struct MailPackageSurveyView: View {
     let processingResult: ProcessingResult
     let onSurveyCompleted: (MailPackageSurvey) -> Void
     
+    @Environment(\.dismiss) private var dismiss
     @State private var recipientAnswer: String = ""
     @State private var brandNameAnswer: String = ""
     @State private var intentionAnswer: String = ""
+    
+    // Computed property to check if addressee question should be shown
+    private var shouldShowAddresseeQuestion: Bool {
+        guard let recipient = processingResult.recipient else { return false }
+        return !recipient.isEmpty && recipient.lowercased() != "current resident"
+    }
+    
+    // Function to get the correct question number based on whether addressee question is shown
+    private func questionNumber(for originalNumber: Int) -> String {
+        if shouldShowAddresseeQuestion {
+            return "Question \(originalNumber)"
+        } else {
+            // If addressee question is skipped, shift all numbers down by 1
+            return "Question \(originalNumber - 1)"
+        }
+    }
     
     var body: some View {
         NavigationView {
             VStack(spacing: AppSpacing.xl) {
                 // Survey Questions
                 VStack(spacing: AppSpacing.xl) {
-                    // Question 1: Recipient Name
-                    VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("Question 1")
-                            .font(AppTypography.caption1)
-                            .foregroundColor(AppColors.textSecondary)
-                            .textCase(.uppercase)
-                        
-                        Text("Was this offer sent to **\(processingResult.recipient ?? "you")**?")
-                            .font(AppTypography.title3)
-                            .foregroundColor(AppColors.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .multilineTextAlignment(.leading)
-                        
-                        VStack(spacing: AppSpacing.sm) {
-                            RadioButton(
-                                title: "Yes",
-                                isSelected: recipientAnswer == "yes",
-                                action: { recipientAnswer = "yes" }
-                            )
+                    // Question 1: Recipient Name (only show if specific addressee is detected)
+                    if shouldShowAddresseeQuestion {
+                        VStack(alignment: .leading, spacing: AppSpacing.md) {
+                            Text("Question 1")
+                                .font(AppTypography.caption1)
+                                .foregroundColor(AppColors.textSecondary)
+                                .textCase(.uppercase)
                             
-                            RadioButton(
-                                title: "No",
-                                isSelected: recipientAnswer == "no",
-                                action: { recipientAnswer = "no" }
-                            )
+                            Text("Who is **\(processingResult.recipient!)**?")
+                                .font(AppTypography.title3)
+                                .foregroundColor(AppColors.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .multilineTextAlignment(.leading)
+                            
+                            VStack(spacing: AppSpacing.sm) {
+                                RadioButton(
+                                    title: "\(processingResult.recipient!) is me",
+                                    isSelected: recipientAnswer == "me",
+                                    action: { recipientAnswer = "me" }
+                                )
+                                
+                                RadioButton(
+                                    title: "\(processingResult.recipient!) is someone else in my house",
+                                    isSelected: recipientAnswer == "someone_else",
+                                    action: { recipientAnswer = "someone_else" }
+                                )
+                                
+                                RadioButton(
+                                    title: "I don't know",
+                                    isSelected: recipientAnswer == "dont_know",
+                                    action: { recipientAnswer = "dont_know" }
+                                )
+                            }
                         }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .cornerRadius(AppCornerRadius.medium)
                     }
-                    .padding()
-                    .background(AppColors.cardBackground)
-                    .cornerRadius(AppCornerRadius.medium)
                     
-                    // Question 2: Brand Name
+                    // Question 2: Brand Name (or Question 1 if addressee question is skipped)
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("Question 2")
+                        Text(questionNumber(for: 2))
                             .font(AppTypography.caption1)
                             .foregroundColor(AppColors.textSecondary)
                             .textCase(.uppercase)
@@ -82,9 +107,9 @@ struct MailPackageSurveyView: View {
                     .background(AppColors.cardBackground)
                     .cornerRadius(AppCornerRadius.medium)
                     
-                    // Question 3: Intention
+                    // Question 3: Intention (or Question 2 if addressee question is skipped)
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("Question 3")
+                        Text(questionNumber(for: 3))
                             .font(AppTypography.caption1)
                             .foregroundColor(AppColors.textSecondary)
                             .textCase(.uppercase)
@@ -119,8 +144,14 @@ struct MailPackageSurveyView: View {
                 Spacer()
                 
                 // Action Buttons
-                VStack(spacing: AppSpacing.md) {
-                    Button("Submit Survey") {
+                HStack(spacing: AppSpacing.md) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    
+                    Button("Submit") {
                         submitSurvey()
                     }
                     .buttonStyle(PrimaryButtonStyle())
@@ -140,11 +171,16 @@ struct MailPackageSurveyView: View {
     }
     
     private var canSubmit: Bool {
-        let hasRecipientAnswer = !recipientAnswer.isEmpty
         let hasBrandNameAnswer = !brandNameAnswer.isEmpty
         let hasIntentionAnswer = !intentionAnswer.isEmpty
         
-        return hasRecipientAnswer && hasBrandNameAnswer && hasIntentionAnswer
+        // Only require recipient answer if the addressee question is shown
+        if shouldShowAddresseeQuestion {
+            let hasRecipientAnswer = !recipientAnswer.isEmpty
+            return hasRecipientAnswer && hasBrandNameAnswer && hasIntentionAnswer
+        } else {
+            return hasBrandNameAnswer && hasIntentionAnswer
+        }
     }
     
     private func submitSurvey() {
