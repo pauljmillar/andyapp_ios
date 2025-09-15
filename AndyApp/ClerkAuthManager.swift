@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 import Clerk
+import GoogleSignIn
+
 
 // MARK: - Clerk Authentication Manager
 @MainActor
@@ -284,6 +286,45 @@ final class ClerkAuthManager: ObservableObject {
         errorMessage = nil
     }
     
+    // MARK: - Sign In with Google
+    func signInWithGoogle() async throws {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            // Use Clerk's OAuth strategy to sign in with Google
+            // This will handle the OAuth flow automatically
+            let signIn = try await SignIn.create(strategy: .oauth(provider: .google, redirectUrl: "com.signalm.andyappv0://oauth-callback"))
+            
+            if signIn.status == .complete {
+                await checkExistingSession()
+            } else if signIn.status == .needsIdentifier {
+                print("Google Sign-in needs identifier. This usually means the user needs to complete the OAuth flow.")
+                print("The user should be redirected to complete the OAuth flow in their browser.")
+                errorMessage = "Please complete the Google sign-in process in your browser, then return to the app."
+            } else {
+                print("Google Sign-in incomplete. Status: \(signIn.status)")
+                errorMessage = "Google sign-in incomplete. Status: \(signIn.status). Please try again."
+            }
+            
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = error.localizedDescription
+            throw error
+        }
+    }
+    
+    // Helper method to get root view controller
+    private func getRootViewController() async -> UIViewController? {
+        return await MainActor.run {
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first else {
+                return nil
+            }
+            return window.rootViewController
+        }
+    }
 
 }
 
@@ -363,6 +404,42 @@ struct ClerkSignInView: View {
                     .disabled(email.isEmpty || password.isEmpty || authManager.isLoading)
                 }
                 .padding(.horizontal, AppSpacing.xl)
+                
+                // Google Sign-In Button
+                VStack(spacing: AppSpacing.md) {
+                    HStack {
+                        Rectangle()
+                            .fill(AppColors.textSecondary.opacity(0.3))
+                            .frame(height: 1)
+                        Text("or")
+                            .font(AppTypography.caption2)
+                            .foregroundColor(AppColors.textSecondary)
+                            .padding(.horizontal, AppSpacing.sm)
+                        Rectangle()
+                            .fill(AppColors.textSecondary.opacity(0.3))
+                            .frame(height: 1)
+                    }
+                    .padding(.horizontal, AppSpacing.xl)
+                    
+                    Button(action: {
+                        Task {
+                            do {
+                                try await authManager.signInWithGoogle()
+                            } catch {
+                                // Error is already handled in the authManager
+                            }
+                        }
+                    }) {
+                        // Official Google Sign-In button
+                        Image("GoogleSignInContinue")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(height: 50)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(authManager.isLoading)
+                    .padding(.horizontal, AppSpacing.xl)
+                }
                 
                 // Sign Up Link
                 HStack {
@@ -494,6 +571,42 @@ struct ClerkSignUpView: View {
                         .buttonStyle(PrimaryButtonStyle())
                         .disabled(!isFormValid || authManager.isLoading)
                     }
+                    .padding(.horizontal, AppSpacing.xl)
+                }
+                
+                // Google Sign-In Button
+                VStack(spacing: AppSpacing.md) {
+                    HStack {
+                        Rectangle()
+                            .fill(AppColors.textSecondary.opacity(0.3))
+                            .frame(height: 1)
+                        Text("or")
+                            .font(AppTypography.caption2)
+                            .foregroundColor(AppColors.textSecondary)
+                            .padding(.horizontal, AppSpacing.sm)
+                        Rectangle()
+                            .fill(AppColors.textSecondary.opacity(0.3))
+                            .frame(height: 1)
+                    }
+                    .padding(.horizontal, AppSpacing.xl)
+                    
+                    Button(action: {
+                        Task {
+                            do {
+                                try await authManager.signInWithGoogle()
+                            } catch {
+                                // Error is already handled in the authManager
+                            }
+                        }
+                    }) {
+                        // Official Google Sign-Up button
+                        Image("GoogleSignInSignUp")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(height: 50)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(authManager.isLoading)
                     .padding(.horizontal, AppSpacing.xl)
                 }
                 
