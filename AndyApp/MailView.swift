@@ -51,6 +51,7 @@ import VisionKit
 struct MailView: View {
     @StateObject private var viewModel = MailViewModel()
     @State private var showingCamera = false
+    @State private var showingCameraSelection = false
     @State private var showingScanningTips = false
     let onIndustriesChanged: ([String]) -> Void
     @Binding var selectedFilter: String?
@@ -154,7 +155,7 @@ struct MailView: View {
                 HStack {
                     Spacer()
                     Button(action: {
-                        showingCamera = true
+                        showingCameraSelection = true
                     }) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 24))
@@ -177,8 +178,30 @@ struct MailView: View {
         .sheet(isPresented: $showingScanningTips) {
             ScanningTipsView()
         }
+        .sheet(isPresented: $showingCameraSelection) {
+            CameraSelectionView(
+                onCameraSelected: {
+                    showingCamera = true
+                },
+                onSampleImageSelected: {
+                    // Use sample image for testing
+                    let sampleImages = SampleImageService.shared.getSampleImages()
+                    Task {
+                        await viewModel.startMailPackageWorkflow(with: sampleImages)
+                    }
+                }
+            )
+        }
         .onAppear {
             LocalStorageManager.shared.migrateImagePathsIfNeeded()
+            viewModel.loadMailPackages()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MailPackageUpdated"))) { notification in
+            // Reload packages when a mail package is updated by background processing
+            viewModel.loadMailPackages()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MailPackageStatusUpdated"))) { notification in
+            // Reload packages when processing status changes
             viewModel.loadMailPackages()
         }
         .onChange(of: viewModel.availableIndustries) { industries in
@@ -192,7 +215,14 @@ struct MailView: View {
             }
         }
         .sheet(item: $viewModel.selectedMailPackage) { mailPackage in
-            MailPackageDetailView(mailPackage: mailPackage)
+            MailPackageDetailView(
+                mailPackage: mailPackage,
+                onStartSurvey: { mailPackageId in
+                    Task {
+                        await viewModel.startSurveyWorkflow(for: mailPackageId)
+                    }
+                }
+            )
         }
         .sheet(isPresented: $viewModel.showingSurvey) {
             if let result = viewModel.processingResult {
@@ -299,20 +329,20 @@ struct MailPackageCard: View {
                 
                 // Content - 3 lines of text
                 VStack(alignment: .leading, spacing: 4) {
-                    // Line 1: Industry (or Unknown)
-                    Text(mailPackage.industry ?? "Unknown")
+                    // Line 1: Industry or processing status
+                    Text(industryText)
                         .font(AppTypography.caption1)
                         .foregroundColor(AppColors.textSecondary)
                         .lineLimit(1)
                     
-                    // Line 2: Company or brand_name
-                    Text(mailPackage.brandName ?? "Unknown Company")
+                    // Line 2: Company or processing message
+                    Text(companyText)
                         .font(AppTypography.body)
                         .foregroundColor(AppColors.textPrimary)
                         .lineLimit(1)
                     
-                    // Line 3: First few words of the offer
-                    Text(mailPackage.primaryOffer ?? "No offer details")
+                    // Line 3: Offer or status message
+                    Text(offerText)
                         .font(AppTypography.caption1)
                         .foregroundColor(AppColors.textSecondary)
                         .lineLimit(1)
@@ -320,24 +350,15 @@ struct MailPackageCard: View {
                 
                 Spacer()
                 
-                // Right side: Time and completion status
+                // Right side: Time and processing status
                 VStack(alignment: .trailing, spacing: 4) {
                     // Time (blue color, same as profile circle)
                     Text(formatTime(mailPackage.createdAt))
                         .font(AppTypography.caption2)
                         .foregroundColor(Color(red: 0.314, green: 0.608, blue: 0.961)) // #509bf5
                     
-                    // Completion check mark (only if processing is complete)
-                    if mailPackage.processingStatus == .completed {
-                        Circle()
-                            .fill(Color(red: 0.314, green: 0.608, blue: 0.961)) // Blue circle
-                            .frame(width: 16, height: 16)
-                            .overlay(
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.black)
-                            )
-                    }
+                    // Processing status indicator
+                    processingStatusIndicator
                 }
             }
             .padding(AppSpacing.sm)
@@ -352,6 +373,121 @@ struct MailPackageCard: View {
         formatter.dateStyle = .none
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+    
+    // MARK: - Content Text Based on Processing State
+    private var industryText: String {
+        switch mailPackage.asyncProcessingState {
+        case .scanning:
+            return "Scanning..."
+        case .processing:
+            return "Processing..."
+        case .readyForSurvey:
+            return mailPackage.industry ?? "Ready for Survey"
+        case .surveyComplete:
+            return mailPackage.industry ?? "Complete"
+        case .none:
+            return mailPackage.industry ?? "Unknown"
+        }
+    }
+    
+    private var companyText: String {
+        switch mailPackage.asyncProcessingState {
+        case .scanning:
+            return "Uploading images"
+        case .processing:
+            return "AI analyzing content"
+        case .readyForSurvey:
+            return mailPackage.brandName ?? "Ready for Survey"
+        case .surveyComplete:
+            return mailPackage.brandName ?? "Survey Complete"
+        case .none:
+            return mailPackage.brandName ?? "Unknown Company"
+        }
+    }
+    
+    private var offerText: String {
+        switch mailPackage.asyncProcessingState {
+        case .scanning:
+            return "Please wait..."
+        case .processing:
+            return "This may take a moment"
+        case .readyForSurvey:
+            return "Tap to confirm details"
+        case .surveyComplete:
+            return mailPackage.primaryOffer ?? "Survey Complete"
+        case .none:
+            return mailPackage.primaryOffer ?? "No offer details"
+        }
+    }
+    
+    // MARK: - Processing Status Indicator
+    @ViewBuilder
+    private var processingStatusIndicator: some View {
+        switch mailPackage.asyncProcessingState {
+        case .scanning:
+            // Show scanning indicator (dots animation)
+            HStack(spacing: 2) {
+                ForEach(0..<3) { index in
+                    Circle()
+                        .fill(AppColors.primaryGreen)
+                        .frame(width: 4, height: 4)
+                        .scaleEffect(0.8)
+                        .animation(
+                            .easeInOut(duration: 0.6)
+                            .repeatForever()
+                            .delay(Double(index) * 0.2),
+                            value: mailPackage.id
+                        )
+                }
+            }
+            
+        case .processing:
+            // Show processing indicator (spinner)
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
+                .scaleEffect(0.6)
+            
+        case .readyForSurvey:
+            // Show "Ready" indicator with green circle
+            Circle()
+                .fill(AppColors.primaryGreen)
+                .frame(width: 16, height: 16)
+                .overlay(
+                    Image(systemName: "exclamationmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.black)
+                )
+            
+        case .surveyComplete:
+            // Show completion checkmark (blue circle)
+            Circle()
+                .fill(Color(red: 0.314, green: 0.608, blue: 0.961)) // Blue circle
+                .frame(width: 16, height: 16)
+                .overlay(
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.black)
+                )
+            
+        case .none:
+            // Fallback for packages without async state (legacy)
+            if mailPackage.processingStatus == .completed {
+                Circle()
+                    .fill(Color(red: 0.314, green: 0.608, blue: 0.961)) // Blue circle
+                    .frame(width: 16, height: 16)
+                    .overlay(
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.black)
+                    )
+            } else {
+                // Show processing indicator for legacy packages
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primaryGreen))
+                    .scaleEffect(0.6)
+            }
+        }
     }
     
     private func getThumbnailImage(for mailPackage: MailPackage) -> UIImage? {
@@ -439,71 +575,29 @@ class MailViewModel: ObservableObject {
         }
         
         do {
-            print("🚀 Starting mail package workflow with \(images.count) images...")
+            print("🚀 Starting async mail package workflow with \(images.count) images...")
             
-            // Create mail package and process ALL images (including AI processing)
-            let mailPackage = try await mailProcessingService.createAndProcessMailPackage(
+            // Create mail package and process images (steps 1-4 only)
+            let mailPackage = try await mailProcessingService.createMailPackage(
                 images: images,
                 timestamp: timestamp
             )
             
-            print("✅ Mail package created and processed successfully")
+            print("✅ Mail package created successfully")
             print("🆔 Mail package ID: \(mailPackage.id)")
             
-            // Get the processing result from the service
-            // We need to get the OCR texts from the images first
-            var allOcrTexts: [String] = []
-            
-            // Extract OCR from all images
-            for (index, image) in images.enumerated() {
-                let ocrText = try await mailProcessingService.ocrService.extractText(from: image)
-                allOcrTexts.append(ocrText)
-                print("📝 OCR extracted from image \(index + 1): \(ocrText.count) characters")
-            }
-            
-            let processingResult = try await mailProcessingService.completeMailPackage(
-                mailPackageId: mailPackage.id,
-                allOcrTexts: allOcrTexts,
-                timestamp: timestamp
-            )
-            
-            print("🤖 AI processing completed, showing survey...")
-            
-            // Update the mail package with the industry from processing result
-            let updatedMailPackage = MailPackage(
-                id: mailPackage.id,
-                panelistId: mailPackage.panelistId,
-                packageName: mailPackage.packageName,
-                packageDescription: mailPackage.packageDescription,
-                industry: processingResult.industry,
-                brandName: processingResult.brandName,
-                primaryOffer: processingResult.primaryOffer,
-                companyValidated: mailPackage.companyValidated,
-                responseIntention: mailPackage.responseIntention,
-                nameCheck: mailPackage.nameCheck,
-                status: mailPackage.status,
-                pointsAwarded: mailPackage.pointsAwarded,
-                isApproved: mailPackage.isApproved,
-                processingStatus: mailPackage.processingStatus,
-                createdAt: mailPackage.createdAt,
-                updatedAt: mailPackage.updatedAt,
-                s3Key: mailPackage.s3Key,
-                imagePaths: mailPackage.imagePaths
-            )
-            
-            // Show survey with processing results
+            // Add the new mail package to the beginning of the list and save to local storage
             await MainActor.run {
-                self.processingResult = processingResult
-                self.currentMailPackageId = mailPackage.id
-                self.showingSurvey = true
+                self.mailPackages.insert(mailPackage, at: 0)
+                LocalStorageManager.shared.saveMailPackage(mailPackage)
                 
-                // Add the new mail package to the beginning of the list and save to local storage
-                self.mailPackages.insert(updatedMailPackage, at: 0)
-                LocalStorageManager.shared.saveMailPackage(updatedMailPackage)
-                
-                // Keep processing state true until survey is completed
-                // self.isProcessing = false  // Don't set to false yet
+                // Set processing to false - user can now scan more packages
+                self.isProcessing = false
             }
+            
+            // Queue the package for background processing (steps 5-7)
+            await BackgroundProcessingService.shared.queueMailPackage(mailPackage.id)
+            print("🔄 Mail package \(mailPackage.id) queued for background processing")
             
         } catch {
             print("❌ Mail package workflow failed: \(error)")
@@ -512,6 +606,37 @@ class MailViewModel: ObservableObject {
                 self.isProcessing = false
             }
         }
+    }
+    
+    /// Starts the survey workflow for a mail package that's ready for survey
+    func startSurveyWorkflow(for mailPackageId: String) async {
+        // Get the mail package to retrieve processing results
+        guard let mailPackage = mailPackages.first(where: { $0.id == mailPackageId }) else {
+            print("❌ Could not find mail package \(mailPackageId) for survey")
+            return
+        }
+        
+        // Create a processing result from the mail package data
+        let processingResult = ProcessingResult(
+            industry: mailPackage.industry ?? "Unknown",
+            brandName: mailPackage.brandName,
+            recipient: nil,
+            responseIntention: mailPackage.responseIntention,
+            nameCheck: mailPackage.nameCheck,
+            mailType: nil,
+            primaryOffer: mailPackage.primaryOffer,
+            urgencyLevel: nil,
+            estimatedValue: nil
+        )
+        
+        // Show survey with processing results
+        await MainActor.run {
+            self.processingResult = processingResult
+            self.currentMailPackageId = mailPackageId
+            self.showingSurvey = true
+        }
+        
+        print("📊 Started survey workflow for package \(mailPackageId)")
     }
     
     func completeSurvey(survey: MailPackageSurvey, mailPackageId: String) async {
@@ -549,7 +674,11 @@ class MailViewModel: ObservableObject {
                         createdAt: self.mailPackages[index].createdAt, // Preserve original creation time
                         updatedAt: updatedPackage.updatedAt, // Use the updated time from API
                         s3Key: updatedPackage.s3Key,
-                        imagePaths: self.mailPackages[index].imagePaths // Preserve image paths
+                        imagePaths: self.mailPackages[index].imagePaths, // Preserve image paths
+                        asyncProcessingState: .surveyComplete,
+                        processingStartedAt: self.mailPackages[index].processingStartedAt,
+                        processingCompletedAt: self.mailPackages[index].processingCompletedAt,
+                        surveyCompletedAt: Date()
                     )
                     
                     self.mailPackages[index] = completedPackage
@@ -1525,6 +1654,7 @@ extension CameraPreviewView: AVCaptureVideoDataOutputSampleBufferDelegate {
 // MARK: - Mail Package Detail View
 struct MailPackageDetailView: View {
     let mailPackage: MailPackage
+    let onStartSurvey: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var scannedImages: [UIImage] = []
     @State private var showingImageZoom = false
@@ -1541,6 +1671,11 @@ struct MailPackageDetailView: View {
                     }
                     
                     packageDetailsSection
+                    
+                    // Confirm Details Button (only show when ready for survey)
+                    if mailPackage.asyncProcessingState == .readyForSurvey {
+                        confirmDetailsButton
+                    }
                 }
                 .padding(AppSpacing.lg)
             }
@@ -1654,6 +1789,42 @@ struct MailPackageDetailView: View {
                     DetailRow(label: "Processing Notes", value: processingNotes)
                 }
             }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .cornerRadius(AppCornerRadius.medium)
+    }
+    
+    private var confirmDetailsButton: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            Text("Ready for Survey")
+                .font(AppTypography.title3)
+                .foregroundColor(AppColors.textPrimary)
+            
+            Text("This mail package has been processed and is ready for you to confirm the details. Tap the button below to start the survey.")
+                .font(AppTypography.body)
+                .foregroundColor(AppColors.textSecondary)
+                .multilineTextAlignment(.leading)
+            
+            Button(action: {
+                // Start the survey workflow
+                onStartSurvey(mailPackage.id)
+                dismiss()
+            }) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                    Text("Confirm Details")
+                        .font(AppTypography.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.md)
+                .background(AppColors.primaryGreen)
+                .cornerRadius(AppCornerRadius.medium)
+            }
+            .buttonStyle(PlainButtonStyle())
         }
         .padding()
         .background(AppColors.cardBackground)

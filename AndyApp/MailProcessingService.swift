@@ -18,6 +18,125 @@ class MailProcessingService: ObservableObject {
     
     private init() {}
     
+    // MARK: - Async Processing Support
+    
+    /// Creates a new mail package and processes images (steps 1-4 only)
+    /// This is the synchronous part that returns immediately
+    /// - Parameters:
+    ///   - images: Array of scanned images
+    ///   - timestamp: Timestamp when images were captured
+    /// - Returns: Created MailPackage with scanning state
+    func createMailPackage(
+        images: [UIImage],
+        timestamp: String
+    ) async throws -> MailPackage {
+        
+        print("🚀 Starting new mail package creation (async workflow)...")
+        print("📸 Image count: \(images.count)")
+        
+        var mailPackageId: String? = nil
+        var allOcrTexts: [String] = []
+        
+        // Step 1: Process and upload first image (creates new mail package)
+        print("📤 Uploading first image (creates new mail package)...")
+        let firstImageResult = try await processAndUploadImage(
+            image: images[0],
+            mailPackageId: nil, // nil for new package
+            imageSequence: 1,
+            timestamp: timestamp
+        )
+        allOcrTexts.append(firstImageResult.ocrText)
+        
+        // Extract mail package ID from the first upload response
+        mailPackageId = firstImageResult.mailPackageId
+        print("🆔 First image upload completed. Mail package ID: \(mailPackageId ?? "nil")")
+        
+        // Step 2: Process remaining images if any
+        if images.count > 1 {
+            print("📤 Uploading \(images.count - 1) additional images...")
+            for (index, image) in images.dropFirst().enumerated() {
+                let imageSequence = index + 2
+                let imageResult = try await processAndUploadImage(
+                    image: image,
+                    mailPackageId: mailPackageId, // Use extracted ID from first upload
+                    imageSequence: imageSequence,
+                    timestamp: timestamp
+                )
+                allOcrTexts.append(imageResult.ocrText)
+            }
+        }
+        
+        // Extract mail package ID from first upload
+        guard let finalMailPackageId = mailPackageId else {
+            throw MailProcessingError.processingFailed("Failed to extract mail package ID from first upload")
+        }
+        
+        print("🆔 Mail package ID extracted: \(finalMailPackageId)")
+        
+        // Save images locally and get their paths
+        let imagePaths = await LocalStorageManager.shared.saveMailScans(
+            images: images,
+            mailPackageId: finalMailPackageId,
+            timestamp: timestamp
+        )
+        
+        // Store OCR texts for background processing
+        await storeOcrTextsForBackgroundProcessing(
+            mailPackageId: finalMailPackageId,
+            ocrTexts: allOcrTexts,
+            timestamp: timestamp
+        )
+        
+        // Create a mail package with scanning state
+        let scanningPackage = MailPackage(
+            id: finalMailPackageId,
+            panelistId: "extracted-from-api", // This will come from the actual API response
+            packageName: "Mail Package \(timestamp)",
+            packageDescription: "Mail package processed on \(timestamp)",
+            industry: nil,
+            brandName: nil,
+            companyValidated: nil,
+            responseIntention: nil,
+            nameCheck: nil,
+            status: "processing",
+            pointsAwarded: 0,
+            isApproved: false,
+            processingStatus: .processing,
+            createdAt: Date(),
+            updatedAt: Date(),
+            s3Key: nil,
+            imagePaths: imagePaths,
+            asyncProcessingState: .scanning,
+            processingStartedAt: Date(),
+            processingCompletedAt: nil,
+            surveyCompletedAt: nil
+        )
+        
+        return scanningPackage
+    }
+    
+    /// Stores OCR texts for background processing
+    /// - Parameters:
+    ///   - mailPackageId: ID of the mail package
+    ///   - ocrTexts: Array of OCR texts
+    ///   - timestamp: Timestamp for the package
+    private func storeOcrTextsForBackgroundProcessing(
+        mailPackageId: String,
+        ocrTexts: [String],
+        timestamp: String
+    ) async {
+        // Store OCR texts in local storage for background processing
+        // This will be retrieved by the background processing service
+        let ocrData = MailPackageOcrData(
+            mailPackageId: mailPackageId,
+            ocrTexts: ocrTexts,
+            timestamp: timestamp
+        )
+        
+        await LocalStorageManager.shared.saveMailPackageOcrData(ocrData)
+        print("💾 OCR texts stored for background processing: \(ocrTexts.count) texts")
+    }
+    
     /// Creates a new mail package and processes the first scan
     /// - Parameters:
     ///   - images: Array of scanned images

@@ -836,6 +836,39 @@ enum ProcessingStatus: String, Codable {
     case failed = "failed"
 }
 
+// MARK: - Async Processing State
+enum AsyncProcessingState: String, Codable, CaseIterable {
+    case scanning = "scanning"
+    case processing = "processing"
+    case readyForSurvey = "readyForSurvey"
+    case surveyComplete = "surveyComplete"
+    
+    var displayName: String {
+        switch self {
+        case .scanning:
+            return "Scanning"
+        case .processing:
+            return "Processing..."
+        case .readyForSurvey:
+            return "Ready for Survey"
+        case .surveyComplete:
+            return "Complete"
+        }
+    }
+    
+    var isCompleted: Bool {
+        return self == .surveyComplete
+    }
+    
+    var isReadyForSurvey: Bool {
+        return self == .readyForSurvey
+    }
+    
+    var isInProgress: Bool {
+        return self == .scanning || self == .processing
+    }
+}
+
 struct MailPackage: Codable, Identifiable {
     let id: String
     let panelistId: String
@@ -858,6 +891,12 @@ struct MailPackage: Codable, Identifiable {
     let s3Key: String?
     let imagePaths: [String]? // Local file paths to scanned images
     
+    // New async processing state tracking
+    let asyncProcessingState: AsyncProcessingState?
+    let processingStartedAt: Date?
+    let processingCompletedAt: Date?
+    let surveyCompletedAt: Date?
+    
     enum CodingKeys: String, CodingKey {
         case id
         case panelistId = "panelist_id"
@@ -879,9 +918,15 @@ struct MailPackage: Codable, Identifiable {
         case updatedAt = "updated_at"
         case s3Key = "s3_key"
         case imagePaths = "image_paths"
+        
+        // New async processing state tracking
+        case asyncProcessingState = "async_processing_state"
+        case processingStartedAt = "processing_started_at"
+        case processingCompletedAt = "processing_completed_at"
+        case surveyCompletedAt = "survey_completed_at"
     }
     
-    init(id: String, panelistId: String, packageName: String? = nil, packageDescription: String? = nil, industry: String? = nil, brandName: String? = nil, primaryOffer: String? = nil, companyValidated: Bool? = nil, responseIntention: String? = nil, nameCheck: String? = nil, status: String = "pending", pointsAwarded: Int? = nil, isApproved: Bool = false, processingStatus: ProcessingStatus? = nil, createdAt: Date = Date(), updatedAt: Date = Date(), s3Key: String? = nil, imagePaths: [String]? = nil) {
+    init(id: String, panelistId: String, packageName: String? = nil, packageDescription: String? = nil, industry: String? = nil, brandName: String? = nil, primaryOffer: String? = nil, companyValidated: Bool? = nil, responseIntention: String? = nil, nameCheck: String? = nil, status: String = "pending", pointsAwarded: Int? = nil, isApproved: Bool = false, processingStatus: ProcessingStatus? = nil, createdAt: Date = Date(), updatedAt: Date = Date(), s3Key: String? = nil, imagePaths: [String]? = nil, asyncProcessingState: AsyncProcessingState? = nil, processingStartedAt: Date? = nil, processingCompletedAt: Date? = nil, surveyCompletedAt: Date? = nil) {
         self.id = id
         self.panelistId = panelistId
         self.packageName = packageName
@@ -902,6 +947,10 @@ struct MailPackage: Codable, Identifiable {
         self.updatedAt = updatedAt
         self.s3Key = s3Key
         self.imagePaths = imagePaths
+        self.asyncProcessingState = asyncProcessingState
+        self.processingStartedAt = processingStartedAt
+        self.processingCompletedAt = processingCompletedAt
+        self.surveyCompletedAt = surveyCompletedAt
     }
     
     init(from decoder: Decoder) throws {
@@ -925,6 +974,12 @@ struct MailPackage: Codable, Identifiable {
         processingNotes = try container.decodeIfPresent(String.self, forKey: .processingNotes)
         s3Key = try container.decodeIfPresent(String.self, forKey: .s3Key)
         imagePaths = try container.decodeIfPresent([String].self, forKey: .imagePaths)
+        
+        // New async processing state tracking
+        asyncProcessingState = try container.decodeIfPresent(AsyncProcessingState.self, forKey: .asyncProcessingState)
+        processingStartedAt = try container.decodeIfPresent(Date.self, forKey: .processingStartedAt)
+        processingCompletedAt = try container.decodeIfPresent(Date.self, forKey: .processingCompletedAt)
+        surveyCompletedAt = try container.decodeIfPresent(Date.self, forKey: .surveyCompletedAt)
         
         // Handle date decoding with fallback
         if let dateString = try? container.decode(String.self, forKey: .createdAt) {
@@ -1389,5 +1444,20 @@ struct MailPackageSurvey: Codable {
         case industry
         case primaryOffer = "primary_offer"
         case brandName = "brand_name"
+    }
+}
+
+// MARK: - Mail Package OCR Data for Background Processing
+struct MailPackageOcrData: Codable {
+    let mailPackageId: String
+    let ocrTexts: [String]
+    let timestamp: String
+    let createdAt: Date
+    
+    init(mailPackageId: String, ocrTexts: [String], timestamp: String) {
+        self.mailPackageId = mailPackageId
+        self.ocrTexts = ocrTexts
+        self.timestamp = timestamp
+        self.createdAt = Date()
     }
 }

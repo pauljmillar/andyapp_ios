@@ -25,6 +25,10 @@ class LocalStorageManager {
         return "\(userStoragePath)/packages.json"
     }
     
+    private var ocrDataPath: String {
+        return "\(userStoragePath)/ocr_data.json"
+    }
+    
     // MARK: - Mail Package Management
     func saveMailPackage(_ mailPackage: MailPackage) {
         var packages = getMailPackages()
@@ -182,5 +186,53 @@ class LocalStorageManager {
         } catch {
             print("❌ Failed to clear user mail data: \(error)")
         }
+    }
+    
+    // MARK: - OCR Data Management for Background Processing
+    
+    /// Saves OCR data for background processing
+    func saveMailPackageOcrData(_ ocrData: MailPackageOcrData) {
+        var allOcrData = getMailPackageOcrData()
+        
+        // Remove existing data for this package if it exists
+        allOcrData.removeAll { $0.mailPackageId == ocrData.mailPackageId }
+        
+        // Add new data
+        allOcrData.append(ocrData)
+        
+        saveAllOcrData(allOcrData)
+    }
+    
+    /// Gets OCR data for a specific mail package
+    func getMailPackageOcrData(for mailPackageId: String) -> MailPackageOcrData? {
+        let allOcrData = getMailPackageOcrData()
+        return allOcrData.first { $0.mailPackageId == mailPackageId }
+    }
+    
+    /// Gets all OCR data
+    private func getMailPackageOcrData() -> [MailPackageOcrData] {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: ocrDataPath)),
+              let ocrData = try? JSONDecoder().decode([MailPackageOcrData].self, from: data) else {
+            return []
+        }
+        return ocrData
+    }
+    
+    /// Saves all OCR data
+    private func saveAllOcrData(_ ocrData: [MailPackageOcrData]) {
+        do {
+            try FileManager.default.createDirectory(atPath: userStoragePath, withIntermediateDirectories: true, attributes: nil)
+            let data = try JSONEncoder().encode(ocrData)
+            try data.write(to: URL(fileURLWithPath: ocrDataPath))
+        } catch {
+            print("❌ Failed to save OCR data: \(error)")
+        }
+    }
+    
+    /// Removes OCR data for a specific mail package
+    func removeMailPackageOcrData(for mailPackageId: String) {
+        var allOcrData = getMailPackageOcrData()
+        allOcrData.removeAll { $0.mailPackageId == mailPackageId }
+        saveAllOcrData(allOcrData)
     }
 }
