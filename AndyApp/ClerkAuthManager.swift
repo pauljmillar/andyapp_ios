@@ -286,33 +286,49 @@ final class ClerkAuthManager: ObservableObject {
         errorMessage = nil
     }
     
-    // MARK: - Sign In with Google
+    // MARK: - Sign In with Google - DISABLED FOR DEVELOPMENT
+    // TODO: Re-enable when app is published to App Store
     func signInWithGoogle() async throws {
         isLoading = true
         errorMessage = nil
         
         do {
-            // Use Clerk's OAuth strategy to sign in with Google
-            // This will handle the OAuth flow automatically
-            let signIn = try await SignIn.create(strategy: .oauth(provider: .google, redirectUrl: "com.signalm.andyappv0://oauth-callback"))
-            
-            if signIn.status == .complete {
-                await checkExistingSession()
-            } else if signIn.status == .needsIdentifier {
-                print("Google Sign-in needs identifier. This usually means the user needs to complete the OAuth flow.")
-                print("The user should be redirected to complete the OAuth flow in their browser.")
-                errorMessage = "Please complete the Google sign-in process in your browser, then return to the app."
-            } else {
-                print("Google Sign-in incomplete. Status: \(signIn.status)")
-                errorMessage = "Google sign-in incomplete. Status: \(signIn.status). Please try again."
+            // Get the root view controller for Google Sign-In presentation
+            guard let rootViewController = await getRootViewController() else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not get root view controller"])
             }
+            
+            // Start the Google Sign-In flow using Google Sign-In SDK
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            
+            guard let idToken = result.user.idToken?.tokenString else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not get Google ID token"])
+            }
+            
+            print("✅ Google Sign-In successful, ID token received")
+            
+            // For now, let's just check if we have a session after Google Sign-In
+            // The Google Sign-In SDK should have handled the authentication
+            await checkExistingSession()
+            print("✅ Google Sign-In completed, checking session...")
             
             isLoading = false
         } catch {
             isLoading = false
             errorMessage = error.localizedDescription
+            print("❌ Google Sign-In failed: \(error)")
             throw error
         }
+    }
+    
+    // Helper method to get Google Client ID from Info.plist
+    private func getGoogleClientID() -> String? {
+        guard let path = Bundle.main.path(forResource: "GoogleSignIn-Info", ofType: "plist"),
+              let plist = NSDictionary(contentsOfFile: path),
+              let clientID = plist["GIDClientID"] as? String else {
+            return nil
+        }
+        return clientID
     }
     
     // Helper method to get root view controller
@@ -405,7 +421,9 @@ struct ClerkSignInView: View {
                 }
                 .padding(.horizontal, AppSpacing.xl)
                 
-                // Google Sign-In Button
+                // Google Sign-In Button - HIDDEN FOR DEVELOPMENT
+                // TODO: Re-enable when app is published to App Store
+                /*
                 VStack(spacing: AppSpacing.md) {
                     HStack {
                         Rectangle()
@@ -440,6 +458,7 @@ struct ClerkSignInView: View {
                     .disabled(authManager.isLoading)
                     .padding(.horizontal, AppSpacing.xl)
                 }
+                */
                 
                 // Sign Up Link
                 HStack {
@@ -574,7 +593,9 @@ struct ClerkSignUpView: View {
                     .padding(.horizontal, AppSpacing.xl)
                 }
                 
-                // Google Sign-In Button
+                // Google Sign-In Button - HIDDEN FOR DEVELOPMENT
+                // TODO: Re-enable when app is published to App Store
+                /*
                 VStack(spacing: AppSpacing.md) {
                     HStack {
                         Rectangle()
@@ -609,6 +630,7 @@ struct ClerkSignUpView: View {
                     .disabled(authManager.isLoading)
                     .padding(.horizontal, AppSpacing.xl)
                 }
+                */
                 
                 Spacer()
             }

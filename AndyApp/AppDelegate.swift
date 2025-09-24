@@ -12,6 +12,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Set notification center delegate
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         
+        // Configure Google Sign-In
+        if let path = Bundle.main.path(forResource: "GoogleSignIn-Info", ofType: "plist"),
+           let plist = NSDictionary(contentsOfFile: path),
+           let clientID = plist["GIDClientID"] as? String {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+            print("✅ Google Sign-In configured with client ID: \(clientID)")
+        } else {
+            print("❌ Failed to configure Google Sign-In - client ID not found")
+        }
+        
         return true
     }
     
